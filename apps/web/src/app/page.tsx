@@ -1,4 +1,6 @@
-import { webEnv } from "../env";
+import { getWebEnv } from "../env";
+
+const webEnv = getWebEnv();
 
 export default function HomePage() {
   return (
