@@ -2,7 +2,7 @@
 
 - **Purpose:** Track Sprint 1 engineering execution with dependency-aware, commit-safe implementation order.
 - **Owner:** Engineering + Architecture
-- **Status:** Ready for execution
+- **Status:** In progress (Steps 1-6 completed)
 - **Related docs:** `sprint1-implementation-plan.md`, `phase1-execution-plan.md`, `mvp-implementation-blueprint.md`
 
 ## Implementation Guardrails
@@ -41,20 +41,20 @@
 
 **Depends on:** Step 0
 
-- [ ] Create `packages/domain/src/constants/roles.ts`.
-- [ ] Create `packages/domain/src/constants/session.ts`.
-- [ ] Create `packages/domain/src/constants/auth.ts`.
-- [ ] Update `packages/domain/src/index.ts` exports.
-- [ ] Create `packages/contracts/src/constants/api-errors.ts`.
-- [ ] Create `packages/contracts/src/constants/http.ts`.
-- [ ] Update `packages/contracts/src/index.ts` exports.
-- [ ] Create `packages/config/src/constants/env-keys.ts`.
-- [ ] Update `packages/config/src/index.ts` exports.
+- [x] Create `packages/domain/src/constants/roles.ts`.
+- [x] Create `packages/domain/src/constants/session.ts`.
+- [x] Create `packages/domain/src/constants/auth.ts`.
+- [x] Update `packages/domain/src/index.ts` exports.
+- [x] Create `packages/contracts/src/constants/api-errors.ts`.
+- [x] Create `packages/contracts/src/constants/http.ts`.
+- [x] Update `packages/contracts/src/index.ts` exports.
+- [x] Create `packages/config/src/constants/env-keys.ts`.
+- [x] Update `packages/config/src/index.ts` exports.
 
 ### Checkpoint
 
-- [ ] `npm run lint`
-- [ ] `npm run typecheck`
+- [x] `npm run lint`
+- [x] `npm run typecheck`
 
 ---
 
@@ -62,20 +62,20 @@
 
 **Depends on:** Step 1
 
-- [ ] Create `apps/api/src/config/env-schema.ts`.
-- [ ] Update/create `apps/api/src/config/env.ts` typed parser/validator.
-- [ ] Ensure `apps/api/src/index.ts` validates env at bootstrap.
-- [ ] Create `apps/web/src/config/env-schema.ts`.
-- [ ] Update/create `apps/web/src/config/env.ts` typed public env object.
-- [ ] Align required keys in `.env.example`.
-- [ ] Sync keys with `packages/config/src/constants/env-keys.ts`.
-- [ ] Update `README.md` env section if key list changes.
+- [x] Create `apps/api/src/config/env-schema.ts`.
+- [x] Update/create `apps/api/src/config/env.ts` typed parser/validator.
+- [x] Ensure `apps/api/src/index.ts` validates env at bootstrap.
+- [x] Create `apps/web/src/config/env-schema.ts`.
+- [x] Update/create `apps/web/src/config/env.ts` typed public env object.
+- [x] Align required keys in `.env.example`.
+- [x] Sync keys with `packages/config/src/constants/env-keys.ts`.
+- [x] Update `README.md` env section if key list changes.
 
 ### Checkpoint
 
-- [ ] `npm run lint`
-- [ ] `npm run typecheck`
-- [ ] `npm run test`
+- [x] `npm run lint`
+- [x] `npm run typecheck`
+- [x] `npm run test`
 
 ---
 
@@ -83,23 +83,23 @@
 
 **Depends on:** Steps 1-2
 
-- [ ] Create `apps/api/src/modules/auth/types.ts`.
-- [ ] Create `apps/api/src/modules/auth/contracts.ts`.
-- [ ] Create `apps/api/src/modules/auth/service.ts` (interface/stub only).
-- [ ] Create `apps/api/src/modules/auth/controller.ts` (contract-safe responses only).
-- [ ] Create `apps/api/src/modules/auth/routes.ts`.
-- [ ] Create `apps/api/src/modules/auth/policies.ts`.
-- [ ] Create `apps/api/src/middleware/request-actor.ts`.
-- [ ] Create `apps/api/src/middleware/require-auth.ts`.
-- [ ] Create `apps/api/src/middleware/require-role.ts`.
-- [ ] Mount auth routes in `apps/api/src/server.ts`.
-- [ ] Add/update auth route and guard shape tests in `apps/api/tests/*`.
+- [x] Create `apps/api/src/modules/auth/types.ts`.
+- [x] Create `apps/api/src/modules/auth/contracts.ts`.
+- [x] Create `apps/api/src/modules/auth/service.ts` (interface/stub only).
+- [x] Create `apps/api/src/modules/auth/controller.ts` (contract-safe responses only).
+- [x] Create `apps/api/src/modules/auth/routes.ts`.
+- [x] Create `apps/api/src/modules/auth/policies.ts`.
+- [x] Create `apps/api/src/middleware/request-actor.ts`.
+- [x] Create `apps/api/src/middleware/require-auth.ts`.
+- [x] Create `apps/api/src/middleware/require-role.ts`.
+- [x] Mount auth routes in `apps/api/src/server.ts`.
+- [x] Add/update auth route and guard shape tests in `apps/api/tests/*`.
 
 ### Checkpoint
 
-- [ ] `npm run lint --workspace @contriskill/api`
-- [ ] `npm run typecheck --workspace @contriskill/api`
-- [ ] `npm run test --workspace @contriskill/api`
+- [x] `npm run lint --workspace @contriskill/api`
+- [x] `npm run typecheck --workspace @contriskill/api`
+- [x] `npm run test --workspace @contriskill/api`
 
 ---
 
@@ -107,19 +107,19 @@
 
 **Depends on:** Steps 1-3
 
-- [ ] Create `apps/web/src/lib/api/http-client.ts`.
-- [ ] Create `apps/web/src/lib/api/error-normalizer.ts`.
-- [ ] Create `apps/web/src/lib/api/types.ts`.
-- [ ] Create `apps/web/src/lib/api/auth-client.ts`.
-- [ ] Create `apps/web/src/lib/api/user-client.ts`.
-- [ ] Create `apps/web/src/lib/api/index.ts`.
-- [ ] Add/update client parsing/error tests in `apps/web/tests/*`.
+- [x] Create `apps/web/src/lib/api/http-client.ts`.
+- [x] Create `apps/web/src/lib/api/error-normalizer.ts`.
+- [x] Create `apps/web/src/lib/api/types.ts`.
+- [x] Create `apps/web/src/lib/api/auth-client.ts`.
+- [x] Create `apps/web/src/lib/api/user-client.ts`.
+- [x] Create `apps/web/src/lib/api/index.ts`.
+- [x] Add/update client parsing/error tests in `apps/web/tests/*`.
 
 ### Checkpoint
 
-- [ ] `npm run lint --workspace @contriskill/web`
-- [ ] `npm run typecheck --workspace @contriskill/web`
-- [ ] `npm run test --workspace @contriskill/web`
+- [x] `npm run lint --workspace @contriskill/web`
+- [x] `npm run typecheck --workspace @contriskill/web`
+- [x] `npm run test --workspace @contriskill/web`
 
 ---
 
@@ -127,17 +127,17 @@
 
 **Depends on:** Steps 2 and 4
 
-- [ ] Create `apps/web/src/providers/env-provider.tsx`.
-- [ ] Create `apps/web/src/providers/session-provider.tsx`.
-- [ ] Create `apps/web/src/providers/api-client-provider.tsx`.
-- [ ] Create `apps/web/src/providers/app-providers.tsx` with canonical order.
-- [ ] Wire `AppProviders` in `apps/web/src/app/layout.tsx`.
-- [ ] Add `apps/web/src/types/session.ts` if needed for provider contracts.
+- [x] Create `apps/web/src/providers/env-provider.tsx`.
+- [x] Create `apps/web/src/providers/session-provider.tsx`.
+- [x] Create `apps/web/src/providers/api-client-provider.tsx`.
+- [x] Create `apps/web/src/providers/app-providers.tsx` with canonical order.
+- [x] Wire `AppProviders` in `apps/web/src/app/layout.tsx`.
+- [x] Add `apps/web/src/types/session.ts` if needed for provider contracts.
 
 ### Checkpoint
 
-- [ ] `npm run lint --workspace @contriskill/web`
-- [ ] `npm run typecheck --workspace @contriskill/web`
+- [x] `npm run lint --workspace @contriskill/web`
+- [x] `npm run typecheck --workspace @contriskill/web`
 
 ---
 
@@ -145,21 +145,23 @@
 
 **Depends on:** Step 5
 
-- [ ] Create `apps/web/src/app/(public)/page.tsx`.
-- [ ] Create `apps/web/src/app/(auth)/sign-in/page.tsx`.
-- [ ] Create `apps/web/src/app/(app)/layout.tsx`.
-- [ ] Create `apps/web/src/lib/routing/route-policy.ts`.
-- [ ] Create `apps/web/src/lib/routing/require-auth.tsx`.
-- [ ] Create `apps/web/src/lib/routing/redirect-if-auth.tsx`.
-- [ ] Create `apps/web/src/lib/routing/require-role.tsx`.
-- [ ] Update `apps/web/src/app/page.tsx` routing entry behavior if needed.
-- [ ] Add route/guard tests in `apps/web/tests/*`.
+- [x] Create `apps/web/src/app/(public)/page.tsx`.
+- [x] Create `apps/web/src/app/(auth)/sign-in/page.tsx`.
+- [x] Create `apps/web/src/app/(app)/layout.tsx`.
+- [x] Create `apps/web/src/lib/routing/route-policy.ts`.
+- [x] Create `apps/web/src/lib/routing/require-auth.tsx`.
+- [x] Create `apps/web/src/lib/routing/redirect-if-auth.tsx`.
+- [x] Create `apps/web/src/lib/routing/require-role.tsx`.
+- [x] Update `apps/web/src/app/page.tsx` routing entry behavior if needed.
+- [x] Add route/guard tests in `apps/web/tests/*`.
+
+> Note: public route shell is implemented via `apps/web/src/app/(public)/home/page.tsx` to avoid root path conflict with the `/` route strategy shell.
 
 ### Checkpoint
 
-- [ ] `npm run lint --workspace @contriskill/web`
-- [ ] `npm run typecheck --workspace @contriskill/web`
-- [ ] `npm run test --workspace @contriskill/web`
+- [x] `npm run lint --workspace @contriskill/web`
+- [x] `npm run typecheck --workspace @contriskill/web`
+- [x] `npm run test --workspace @contriskill/web`
 
 ---
 
@@ -239,12 +241,12 @@
 
 ## Definition of Done (Sprint 1)
 
-- [ ] Shared role/session/api-error constants implemented and consumed by web and api.
-- [ ] Environment validators exist for web and api with fail-fast behavior.
-- [ ] Auth/session foundation module contracts exist without feature business logic.
-- [ ] Provider hierarchy is wired and documented in web root.
-- [ ] Route groups and protected route strategy are implemented with policy map.
-- [ ] API client core and auth/user client shells are typed and integrated.
+- [x] Shared role/session/api-error constants implemented and consumed by web and api.
+- [x] Environment validators exist for web and api with fail-fast behavior.
+- [x] Auth/session foundation module contracts exist without feature business logic.
+- [x] Provider hierarchy is wired and documented in web root.
+- [x] Route groups and protected route strategy are implemented with policy map.
+- [x] API client core and auth/user client shells are typed and integrated.
 - [ ] UI primitive and design token foundations are implemented.
-- [ ] CI passes (`lint`, `typecheck`, `test`) with Sprint 1 changes.
-- [ ] No deferred systems implemented.
+- [x] CI passes (`lint`, `typecheck`, `test`) with Sprint 1 changes.
+- [x] No deferred systems implemented.
