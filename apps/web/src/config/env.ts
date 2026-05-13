@@ -9,5 +9,3 @@ export const getWebEnv = (): WebEnv => {
 
   return cachedEnv;
 };
-
-export const webEnv = getWebEnv();
