@@ -1,472 +1,161 @@
-# contribution-engine.md
-
 # Contribution Engine
 
-## 1. Purpose
-
-The Contribution Engine defines how users create value, interact, collaborate, earn trust, and participate within the platform ecosystem.
-
-It acts as:
-
-* the behavioral core of the platform,
-* the trust generation layer,
-* and the contribution validation system.
-
-The engine is designed to:
-
-* encourage meaningful participation,
-* reward useful contribution,
-* reduce low-quality engagement,
-* and create long-term ecosystem trust.
-
----
-
-# 2. Contribution Philosophy
-
-The platform values:
-
-* useful contribution,
-* collaborative growth,
-* knowledge exchange,
-* mentorship,
-* and ecosystem participation.
-
-Contribution is treated as:
-
-```text id="k3n5pw"
-human value exchange
-```
-
-rather than simple transactional interaction.
-
-The system should reward:
-
-* consistency,
-* usefulness,
-* reliability,
-* and collaborative behavior.
-
----
-
-# 3. Contribution Types
-
-## Mentorship Contribution
-
-Helping users learn:
-
-* programming,
-* design,
-* architecture,
-* debugging,
-* workflows,
-* career guidance.
-
-## Collaboration Contribution
-
-Participating in:
-
-* shared projects,
-* product development,
-* open collaboration tasks.
-
-## Problem-Solving Contribution
-
-Helping users:
-
-* solve technical issues,
-* debug systems,
-* improve workflows.
-
-## Educational Contribution
-
-Creating:
-
-* guides,
-* explanations,
-* learning resources,
-* onboarding assistance.
-
-## Community Contribution
-
-Supporting:
-
-* discussions,
-* moderation,
-* reporting abuse,
-* ecosystem improvement.
-
----
-
-# 4. Contribution Lifecycle
-
-## Core Contribution Flow
-
-```text id="q7v1tz"
-Post Created
-→ Contributor Responds
-→ Collaboration Accepted
-→ Work Session Starts
-→ Task Completed
-→ Both Users Verify Completion
-→ Reviews Submitted
-→ Credits Assigned
-→ Reputation Updated
-```
-
-This lifecycle acts as:
-
-```text id="y8d2lh"
-the central behavioral engine of the platform
-```
-
----
-
-# 5. Contribution States
-
-## Task States
-
-```text id="b5t9gm"
-open
-in_review
-accepted
-in_progress
-completed
-verified
-disputed
-cancelled
-expired
-```
-
-## Contribution States
-
-```text id="v2m6qx"
-pending
-active
-completed
-failed
-reported
-under_moderation
-```
-
-These states allow:
-
-* lifecycle tracking,
-* moderation handling,
-* analytics,
-* and system transparency.
-
----
-
-# 6. Credit System
-
-## Purpose
-
-Credits measure:
-
-* ecosystem participation,
-* useful contribution,
-* and collaboration activity.
-
-Credits are NOT:
-
-* financial currency,
-* investment assets,
-* or cryptocurrency.
-
-They are:
-
-```text id="r4c8yk"
-ecosystem utility and contribution indicators
-```
-
----
-
-# Credit Earning Sources
-
-Users earn credits by:
-
-* helping others,
-* mentoring,
-* completing collaborations,
-* solving problems,
-* receiving positive reviews,
-* community participation.
-
----
-
-# Credit Usage
-
-Users may spend credits for:
-
-* mentorship access,
-* expert sessions,
-* advanced collaboration requests,
-* premium learning interactions,
-* ecosystem opportunities.
-
----
-
-# Credit Calculation Factors
-
-Credit rewards depend on:
-
-* contribution difficulty,
-* collaboration quality,
-* completion verification,
-* reputation score,
-* review quality,
-* consistency.
-
----
-
-# 7. Reputation System
-
-## Purpose
-
-The Reputation System builds:
-
-* ecosystem trust,
-* contributor credibility,
-* participation quality signals.
-
----
-
-# Reputation Increases Through
-
-* successful collaborations
-* verified task completion
-* positive reviews
-* contribution consistency
-* long-term participation
-* helpful community behavior
-
----
-
-# Reputation Decreases Through
-
-* spam activity
-* fake reviews
-* abusive behavior
-* task abandonment
-* fake collaborations
-* duplicate accounts
-* repeated reports
-
----
-
-# Visibility Mechanics
-
-Higher reputation improves:
-
-* profile discoverability
-* mentorship visibility
-* collaboration opportunities
-* ecosystem trust level
-
----
-
-# Reputation Components
-
-```text id="h9x4nf"
-completion_rate
-review_quality
-response_consistency
-activity_level
-trust_score
-community_reports
-```
-
----
-
-# 8. Verification System
-
-## Contribution Verification
-
-A contribution becomes verified when:
-
-* both participants confirm completion,
-* reviews are submitted,
-* moderation checks pass.
-
----
-
-# Verification Goals
-
-The system should:
-
-* reduce fraud,
-* increase trust,
-* validate contribution quality,
-* maintain ecosystem reliability.
-
----
-
-# Dispute Handling
-
-If verification conflicts occur:
-
-```text id="t8p3rv"
-task
-→ enters disputed state
-→ moderation review triggered
-→ evidence evaluated
-→ final resolution assigned
-```
-
----
-
-# 9. Moderation & Abuse Prevention
-
-## Abuse Types
-
-### Fake Collaborations
-
-Users farming credits without meaningful interaction.
-
-### Self Farming
-
-Multiple accounts artificially boosting reputation.
-
-### Spam Requests
-
-Low-quality or repeated irrelevant tasks.
-
-### Review Manipulation
-
-Fake reviews or coordinated rating abuse.
-
-### Inactive Contributors
-
-Users accepting tasks but abandoning participation.
-
----
-
-# Prevention Systems
-
-## Rate Limiting
-
-Limits excessive:
-
-* posts,
-* requests,
-* review activity.
-
-## Trust Thresholds
-
-Low-trust users receive:
-
-* reduced visibility,
-* contribution limits,
-* moderation monitoring.
-
-## Reputation Weighting
-
-Reviews from trusted users carry more influence.
-
-## Duplicate Detection
-
-System monitors:
-
-* suspicious activity,
-* repeated IP/device patterns,
-* abnormal contribution behavior.
-
----
-
-# 10. Notification System
-
-## Notification Triggers
-
-Notifications occur when:
-
-* contribution accepted,
-* message received,
-* review submitted,
-* reputation updated,
-* credits assigned,
-* disputes opened,
-* moderation actions triggered.
-
----
-
-# 11. Failure States
-
-## Contributor Disappears
-
-```text id="x7m1dq"
-inactive_timeout
-→ contribution flagged
-→ auto reminder triggered
-→ possible cancellation
-```
-
-## Review Conflict
-
-Conflicting reviews trigger:
-
-* moderation review,
-* dispute investigation.
-
-## Collaboration Failure
-
-If work fails:
-
-* partial reputation impact,
-* cancellation logging,
-* trust recalculation.
-
----
-
-# 12. Trust Mechanics
-
-The ecosystem should prioritize:
-
-```text id="j6r9kv"
-trust over popularity
-```
-
-Trust should emerge from:
-
-* verified contribution,
-* consistency,
-* collaboration quality,
-* long-term participation.
-
-The system should reward:
-
-* reliability,
-* professionalism,
-* ecosystem helpfulness.
-
----
-
-# 13. Future Expansion
-
-Possible future systems:
-
-* AI trust analysis
-* skill verification
-* decentralized identity
-* portable reputation
-* governance systems
-* contributor levels
-* ecosystem badges
-* collaboration analytics
-
----
-
-# Contribution Engine Conclusion
-
-The Contribution Engine exists to transform:
-
-```text id="c4t8zl"
-human collaboration
-→ into measurable ecosystem trust
-```
-
-while maintaining:
-
-* fairness,
-* transparency,
-* participation quality,
-* and scalable community interaction.
+- **Purpose:** Define the MVP contribution lifecycle and trust mechanics across collaboration, credits, reputation, verification, disputes, and moderation.
+- **Owner:** Product + Architecture
+- **Status:** Draft
+- **Related docs:** `product-spec.md`, `moderation-system.md`, `../02-architecture/database-design.md`, `../02-architecture/api-spec.md`, `../adr/ADR-003-ledger-and-audit-principles.md`
+
+## 1. Engine Principles
+
+- Contribution quality is more important than activity volume.
+- Verification is required before trust rewards are finalized.
+- Credits are utility signals, not financial assets.
+- Reputation should be event-based and explainable.
+- Moderation outcomes must be auditable and reversible through explicit events.
+
+## 2. Canonical MVP Contribution Types
+
+- Mentorship contribution
+- Collaboration contribution
+- Problem-solving contribution
+- Educational contribution
+- Community safety contribution
+
+Each contribution type maps into one shared lifecycle model so trust rules remain consistent.
+
+## 3. Canonical Contribution Lifecycle
+
+1. post created
+2. contributor responds
+3. requester accepts response
+4. collaboration starts
+5. work marked complete
+6. verification requested
+7. verification resolved as verified or disputed
+8. reviews submitted
+9. credit ledger settled
+10. reputation events written
+
+## 4. Lifecycle States
+
+### Post States
+
+- `open`
+- `in_review`
+- `accepted`
+- `in_progress`
+- `completed`
+- `verified`
+- `disputed`
+- `cancelled`
+- `expired`
+
+### Collaboration States
+
+- `pending`
+- `active`
+- `awaiting_verification`
+- `verified`
+- `disputed`
+- `failed`
+- `cancelled`
+- `under_moderation`
+
+### State Transition Guardrails
+
+- `open -> accepted` requires at least one valid response.
+- `in_progress -> completed` requires a completion signal from one participant.
+- `completed -> verified` requires both participants to verify.
+- `completed -> disputed` occurs when participant decisions conflict or timeout policy triggers.
+- `under_moderation` blocks normal settlement until case resolution.
+
+## 5. Credit Ledger Rules (MVP)
+
+Credits are managed through append-only ledger entries.
+
+### Allowed Entry Types
+
+- `HOLD`
+- `RELEASE`
+- `EARN`
+- `SPEND`
+- `REVERSAL`
+- `PENALTY`
+- `MANUAL_ADJUSTMENT`
+
+### Settlement Rules
+
+- If the collaboration type requires payment, place a `HOLD` on acceptance.
+- On successful verification:
+  - release hold
+  - write `EARN` for the contributor
+  - write corresponding debit path (`SPEND` or release accounting event) for payer model
+- On disputed outcome:
+  - no positive settlement until moderation decision
+  - use `REVERSAL` only for already-applied entries
+- Every ledger mutation must carry an idempotency key and source reference.
+
+## 6. Reputation Event Rules (MVP)
+
+Reputation changes are written as events, then aggregated into a visible score.
+
+### Event Types
+
+- `COLLAB_COMPLETED`
+- `POSITIVE_REVIEW`
+- `NEGATIVE_REVIEW`
+- `NO_SHOW`
+- `DISPUTE_LOSS`
+- `ABUSE_CONFIRMED`
+- `MODERATOR_ADJUSTMENT`
+
+### Event Rules
+
+- Each event stores source entity and actor context.
+- Multiple events can be created from one collaboration outcome.
+- Moderator-driven events require an audit trail reference.
+- Snapshot score is a derived view, not the source of truth.
+
+## 7. Verification and Dispute Flow
+
+### Verification Flow
+
+1. participant marks collaboration complete
+2. verification request opened
+3. both participants submit verify/reject decisions
+4. outcomes:
+- both verify -> collaboration verified
+- mismatch -> collaboration disputed
+- timeout -> disputed or cancelled based on policy
+
+### Dispute Flow
+
+1. dispute creates a report
+2. moderation case opens
+3. evidence collected
+4. moderator decision issued
+5. ledger and reputation adjustments applied through explicit events
+6. case closure logged in audit trail
+
+## 8. Moderation Audit Trail Rules
+
+- Every dispute must map to a moderation case ID.
+- Every moderation action must include actor, reason, and timestamp.
+- Credit or reputation changes resulting from moderation must reference the case.
+- Closed cases require a disposition note.
+
+## 9. Abuse Resistance in MVP
+
+- Rate limits for posting, responses, and reviews.
+- Suspicious loop detection for repeated same-pair settlements.
+- Trust weighting on reviews from established contributors.
+- No settlement finalization before verification resolution.
+- Escalation to moderation for repeated no-show or review manipulation patterns.
+
+## 10. OPEN DECISION
+
+- What exact credit formula should map difficulty and quality to payout?
+- Should both participants always be allowed to review, or only after bilateral verification?
+- What no-show timeout value is fair for mentorship versus async collaboration?
+- Should negative events decay over time, or remain fully persistent?
+- What moderation severity levels trigger automatic temporary restrictions?

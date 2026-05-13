@@ -1,487 +1,130 @@
-# wireframe-notes.md
-
 # Wireframe Notes
 
-## 1. UX Philosophy
+- **Purpose:** Define the MVP screen flow and trust-critical UI states for contribution, verification, disputes, and moderation visibility.
+- **Owner:** Product Design + Product
+- **Status:** Draft
+- **Related docs:** `design-system.md`, `../01-product/contribution-engine.md`, `../01-product/moderation-system.md`, `../02-architecture/database-design.md`
 
-The platform UX should prioritize:
+## 1. MVP UX Principles
 
-* clarity,
-* trust,
-* collaboration,
-* and actionable interaction.
+- Show trust context before commitment actions.
+- Keep contribution actions simple and state-aware.
+- Make verification and dispute paths explicit and unavoidable when needed.
+- Surface status transitions clearly to both participants.
+- Keep mobile flow optimized for high-frequency actions.
 
-The interface should feel:
+## 2. Canonical MVP Screen Map
 
-```text id="d5m7xz"
-modern
-minimal
-structured
-human-centered
-```
+### Public and Onboarding
 
-The UI should avoid:
+1. landing
+2. sign up and login
+3. onboarding profile and skills
 
-* clutter,
-* excessive complexity,
-* unnecessary decoration.
+### Core Contributor Flow
 
----
+4. dashboard
+5. discover feed
+6. post details
+7. create contribution post
+8. collaboration room
+9. verification and review modal
+10. profile and trust history
 
-# 2. Landing Page Structure
+### Safety and Governance
 
-## Landing Page Goals
+11. report flow
+12. dispute status flow
+13. moderation outcome notification
 
-The landing page should:
+## 3. Contribution Lifecycle Screen Flow
 
-* explain platform purpose,
-* communicate trust philosophy,
-* encourage onboarding,
-* showcase ecosystem value.
+1. discover feed -> post details -> respond
+2. requester accepts -> collaboration room opens
+3. collaboration room -> mark complete
+4. verification modal opens for both participants
+5. outcomes:
+- both verify -> review step -> settlement confirmation state
+- mismatch or timeout -> dispute state -> moderation pending view
 
----
+## 4. Screen-Level Requirements
 
-# Landing Sections
+### Dashboard
 
-## Hero Section
+- show active collaborations grouped by state
+- show pending verification actions first
+- show trust summary: credits, reputation, completion rate
 
-Contains:
+### Discover Feed
 
-* platform headline
-* ecosystem explanation
-* onboarding CTA
-* contribution philosophy
+- each card shows:
+  - contribution type
+  - required skills
+  - trust requirement
+  - credit expectation
+  - current status
 
-## Contribution Showcase
+### Post Details
 
-Displays:
+- show full requirements and acceptance criteria
+- show creator trust context and prior collaboration stats
+- show clear respond action and response status
 
-* active collaborations
-* mentorship examples
-* community activity
+### Collaboration Room
 
-## Trust Section
+- timeline of collaboration events
+- task status and expected deliverables
+- message thread
+- actions: mark complete, open dispute, report behavior
 
-Explains:
+### Verification and Review Modal
 
-* credits
-* reputation
-* verification flow
+- mandatory verify or reject decision
+- rejection requires reason
+- review step only after verification resolution policy is satisfied
 
-## Community Section
+### Dispute Status View
 
-Shows:
+- dispute reason summary
+- current moderation case status
+- expected next action and waiting state
 
-* contributor examples
-* ecosystem participation
-* collaboration success
+## 5. Trust Surfaces in UI
 
-## Footer
+Trust indicators must be visible in:
 
-Contains:
+- contribution cards
+- profile header
+- post details
+- collaboration room header
+- verification modal
 
-* navigation
-* policies
-* ecosystem resources
+Minimum trust indicators for MVP:
 
----
+- reputation score
+- completion rate
+- verified collaboration count
+- recent moderation flags indicator
 
-# 3. Authentication Flow
+## 6. MVP Mobile Flow Priorities
 
-## Authentication Screens
+- fast access to active collaborations
+- quick verification actions
+- dispute reporting with minimal steps
+- notification-driven navigation into pending actions
 
-```text id="u7x2mk"
-welcome
-→ signup/login
-→ skill selection
-→ onboarding
-→ dashboard
-```
+## 7. Failure and Edge States
 
----
+- contributor inactive timeout warning
+- verification pending timeout warning
+- dispute submitted confirmation
+- moderation action applied notification
+- collaboration cancelled state with reason
 
-# Onboarding Goals
+## 8. OPEN DECISION
 
-Collect:
-
-* skills
-* interests
-* experience level
-* collaboration preferences
-
-The onboarding should:
-
-* feel lightweight,
-* reduce friction,
-* accelerate ecosystem entry.
-
----
-
-# 4. Dashboard Layout
-
-## Dashboard Objectives
-
-Users should immediately understand:
-
-* opportunities,
-* reputation,
-* credits,
-* active collaborations.
-
----
-
-# Dashboard Sections
-
-## Top Navigation
-
-Contains:
-
-* search
-* notifications
-* messages
-* profile access
-
-## Sidebar
-
-Contains:
-
-* dashboard
-* posts
-* collaborations
-* messages
-* reputation
-* settings
-
-## Main Feed
-
-Displays:
-
-* help requests
-* mentorship posts
-* collaboration opportunities
-
-## Right Panel
-
-Displays:
-
-* reputation summary
-* credit balance
-* activity insights
-
----
-
-# 5. Contribution Card Structure
-
-## Contribution Cards Must Show
-
-* title
-* creator
-* required skills
-* difficulty
-* reputation requirement
-* credit reward
-* contribution status
-* collaboration type
-
-The card should prioritize:
-
-```text id="s8q1wy"
-decision-making clarity
-```
-
-rather than visual decoration.
-
----
-
-# 6. Profile Structure
-
-## Profile Sections
-
-### Profile Header
-
-Contains:
-
-* avatar
-* username
-* reputation
-* credits
-* skill tags
-
-### Activity Section
-
-Displays:
-
-* contribution history
-* completed collaborations
-* reviews
-* achievements
-
-### Skills Section
-
-Displays:
-
-* verified skills
-* experience level
-* mentorship capabilities
-
-### Portfolio Section
-
-Optional:
-
-* GitHub
-* portfolio links
-* project showcases
-
----
-
-# 7. Contribution Post Flow
-
-## Post Creation Flow
-
-```text id="z3k9dt"
-create post
-→ define contribution type
-→ add requirements
-→ define credits
-→ publish request
-```
-
----
-
-# Contribution Flow UI
-
-```text id="t5r2mv"
-discover post
-→ open contribution card
-→ apply/respond
-→ collaboration starts
-→ completion verification
-→ reviews submitted
-```
-
----
-
-# 8. Messaging Layout
-
-## Messaging Objectives
-
-Messaging should support:
-
-* collaboration clarity,
-* task coordination,
-* mentorship communication.
-
----
-
-# Messaging Structure
-
-## Conversation List
-
-Displays:
-
-* recent conversations
-* unread indicators
-* contribution context
-
-## Chat Area
-
-Contains:
-
-* messages
-* attachments
-* collaboration references
-
-## Action Panel
-
-Contains:
-
-* verify contribution
-* report issue
-* collaboration status
-
----
-
-# 9. Reputation Display
-
-## Reputation Visibility
-
-Reputation should appear:
-
-* on profiles
-* contribution cards
-* mentorship listings
-* collaboration recommendations
-
----
-
-# Reputation UI Components
-
-Display:
-
-* trust score
-* completion rate
-* review quality
-* contribution consistency
-
-The UI should communicate:
-
-```text id="v4n8ql"
-trust at a glance
-```
-
----
-
-# 10. Mobile Experience
-
-## Mobile UX Philosophy
-
-Mobile design should prioritize:
-
-* speed,
-* accessibility,
-* simplified navigation,
-* focused interaction.
-
----
-
-# Mobile Navigation
-
-Use:
-
-* bottom navigation
-* collapsible sections
-* simplified dashboards
-
----
-
-# Mobile Priorities
-
-Focus on:
-
-* contribution discovery
-* messaging
-* notifications
-* quick collaboration actions
-
----
-
-# 11. Navigation System
-
-## Primary Navigation
-
-```text id="j7f1rm"
-dashboard
-discover
-collaborations
-messages
-profile
-settings
-```
-
----
-
-# Secondary Navigation
-
-Includes:
-
-* filters
-* skill categories
-* contribution sorting
-* reputation filters
-
----
-
-# 12. Notification System
-
-## Notification Triggers
-
-Notify users when:
-
-* contribution accepted
-* message received
-* review submitted
-* credits earned
-* reputation updated
-* collaboration completed
-
----
-
-# 13. Failure States
-
-## UX Failure Cases
-
-### Contributor Inactive
-
-UI should:
-
-* show inactivity warning
-* allow cancellation request
-
-### Collaboration Conflict
-
-UI should:
-
-* show dispute state
-* provide reporting options
-
-### Spam Detection
-
-UI should:
-
-* limit repeated actions
-* warn suspicious activity
-
----
-
-# 14. Design System Thinking
-
-## UI Principles
-
-Use:
-
-* consistent spacing
-* modular components
-* reusable cards
-* responsive layouts
-* scalable typography
-
----
-
-# Recommended Visual Direction
-
-The design should feel:
-
-```text id="r2v5hn"
-modern
-clean
-trustworthy
-collaborative
-professional
-```
-
-Inspired by:
-
-* Linear
-* Notion
-* Discord
-* GitHub
-* modern SaaS platforms
-
----
-
-# Wireframe Notes Conclusion
-
-The platform UX should help users:
-
-* confidently participate,
-* quickly understand opportunities,
-* build trust,
-* and collaborate naturally inside the ecosystem.
-
-The interface should always prioritize:
-
-```text id="m1x7cz"
-clarity over complexity
-```
-
-while remaining scalable for future ecosystem growth.
+- Should review submission be blocked until both verification decisions are present?
+- How much detail from moderation outcomes should be visible to non-moderator users?
+- Should trust requirement filters be on by default in discover feed?
+- What is the MVP boundary for profile trust history depth on mobile?
+- Should no-show warnings be private, bilateral, or publicly visible in profile trust history?
