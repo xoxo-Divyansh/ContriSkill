@@ -1,22 +1,13 @@
-export type ApiEnv = {
-  nodeEnv: string;
-  port: number;
-  wsCorsOrigin: string;
-};
+import { parseApiEnv, type ApiEnv } from "./env-schema";
 
-const toNumber = (value: string | undefined, fallback: number): number => {
-  if (!value) {
-    return fallback;
-  }
+export type { ApiEnv } from "./env-schema";
 
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
+let cachedEnv: ApiEnv | undefined;
 
 export const getApiEnv = (): ApiEnv => {
-  return {
-    nodeEnv: process.env.NODE_ENV ?? "development",
-    port: toNumber(process.env.API_PORT, 4000),
-    wsCorsOrigin: process.env.WS_CORS_ORIGIN ?? "http://localhost:3000"
-  };
+  if (!cachedEnv) {
+    cachedEnv = parseApiEnv(process.env);
+  }
+
+  return cachedEnv;
 };

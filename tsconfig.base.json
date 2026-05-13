@@ -1,7 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
-    "baseUrl": ".",
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
@@ -18,11 +17,11 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "paths": {
-      "@contriskill/contracts": ["packages/contracts/src/index.ts"],
-      "@contriskill/domain": ["packages/domain/src/index.ts"],
-      "@contriskill/config": ["packages/config/src/index.ts"],
-      "@contriskill/utils": ["packages/utils/src/index.ts"],
-      "@contriskill/ui": ["packages/ui/src/index.tsx"]
+      "@contriskill/contracts": ["./packages/contracts/src/index.ts"],
+      "@contriskill/domain": ["./packages/domain/src/index.ts"],
+      "@contriskill/config": ["./packages/config/src/index.ts"],
+      "@contriskill/utils": ["./packages/utils/src/index.ts"],
+      "@contriskill/ui": ["./packages/ui/src/index.tsx"]
     }
   }
 }
