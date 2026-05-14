@@ -1,17 +1,6 @@
-import type { sharedEnvKeys as SharedEnvKeys } from "@contriskill/config";
-
-const sharedEnvKeys = {
-  nodeEnv: "NODE_ENV",
-  logLevel: "LOG_LEVEL",
-  apiPort: "API_PORT",
-  jwtAccessSecret: "JWT_ACCESS_SECRET",
-  jwtRefreshSecret: "JWT_REFRESH_SECRET",
-  sessionTtlMinutes: "SESSION_TTL_MINUTES",
-  databaseUrl: "DATABASE_URL",
-  webAppName: "NEXT_PUBLIC_APP_NAME",
-  webApiBaseUrl: "NEXT_PUBLIC_API_BASE_URL",
-  wsCorsOrigin: "WS_CORS_ORIGIN"
-} as const satisfies typeof SharedEnvKeys;
+const webEnvKeys = {
+  apiBaseUrl: "NEXT_PUBLIC_API_BASE_URL"
+} as const;
 
 const parseUrl = (key: string, value: string): string => {
   try {
@@ -22,21 +11,26 @@ const parseUrl = (key: string, value: string): string => {
   }
 };
 
-const getOptionalString = (raw: NodeJS.ProcessEnv, key: string): string | undefined => {
-  const value = raw[key];
+export type WebRuntimeEnv = {
+  NEXT_PUBLIC_APP_NAME?: string;
+  NEXT_PUBLIC_API_BASE_URL?: string;
+};
+
+const getOptionalString = (value: string | undefined): string | undefined => {
   if (!value) {
     return undefined;
   }
+
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
-const getRequiredString = (raw: NodeJS.ProcessEnv, key: string): string => {
-  const value = getOptionalString(raw, key);
-  if (!value) {
+const getRequiredString = (value: string | undefined, key: string): string => {
+  const normalizedValue = getOptionalString(value);
+  if (!normalizedValue) {
     throw new Error(`[env] Missing required environment variable "${key}".`);
   }
-  return value;
+  return normalizedValue;
 };
 
 export type WebEnv = {
@@ -44,11 +38,11 @@ export type WebEnv = {
   apiBaseUrl: string;
 };
 
-export const parseWebEnv = (raw: NodeJS.ProcessEnv): WebEnv => {
-  const appName = getOptionalString(raw, sharedEnvKeys.webAppName) ?? "ContriSkill";
+export const parseWebEnv = (raw: WebRuntimeEnv): WebEnv => {
+  const appName = getOptionalString(raw.NEXT_PUBLIC_APP_NAME) ?? "ContriSkill";
   const apiBaseUrl = parseUrl(
-    sharedEnvKeys.webApiBaseUrl,
-    getRequiredString(raw, sharedEnvKeys.webApiBaseUrl)
+    webEnvKeys.apiBaseUrl,
+    getRequiredString(raw.NEXT_PUBLIC_API_BASE_URL, webEnvKeys.apiBaseUrl)
   );
 
   return {
