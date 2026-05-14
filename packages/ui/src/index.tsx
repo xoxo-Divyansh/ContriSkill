@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+export * from "./providers/theme-provider.js";
+export * from "./tokens/index.js";
+
 type FoundationShellProps = {
   title: string;
   children?: ReactNode;
