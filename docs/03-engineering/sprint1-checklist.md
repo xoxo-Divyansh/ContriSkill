@@ -2,7 +2,7 @@
 
 - **Purpose:** Track Sprint 1 engineering execution with dependency-aware, commit-safe implementation order.
 - **Owner:** Engineering + Architecture
-- **Status:** In progress (Steps 1-6 completed)
+- **Status:** In progress (Steps 1-7 completed)
 - **Related docs:** `sprint1-implementation-plan.md`, `phase1-execution-plan.md`, `mvp-implementation-blueprint.md`
 
 ## Implementation Guardrails
@@ -169,20 +169,20 @@
 
 **Depends on:** Step 1 (can run parallel to Steps 5-6, but merge after Step 6)
 
-- [ ] Create `packages/ui/src/tokens/colors.ts`.
-- [ ] Create `packages/ui/src/tokens/spacing.ts`.
-- [ ] Create `packages/ui/src/tokens/typography.ts`.
-- [ ] Create `packages/ui/src/tokens/radius.ts`.
-- [ ] Create `packages/ui/src/tokens/shadows.ts`.
-- [ ] Create `packages/ui/src/tokens/index.ts`.
-- [ ] Create `packages/ui/src/providers/theme-provider.tsx`.
-- [ ] Update `packages/ui/src/index.tsx` exports.
+- [x] Create `packages/ui/src/tokens/colors.ts`.
+- [x] Create `packages/ui/src/tokens/spacing.ts`.
+- [x] Create `packages/ui/src/tokens/typography.ts`.
+- [x] Create `packages/ui/src/tokens/radius.ts`.
+- [x] Create `packages/ui/src/tokens/shadows.ts`.
+- [x] Create `packages/ui/src/tokens/index.ts`.
+- [x] Create `packages/ui/src/providers/theme-provider.tsx`.
+- [x] Update `packages/ui/src/index.tsx` exports.
 
 ### Checkpoint
 
-- [ ] `npm run lint --workspace @contriskill/ui`
-- [ ] `npm run typecheck --workspace @contriskill/ui`
-- [ ] `npm run test --workspace @contriskill/ui`
+- [x] `npm run lint --workspace @contriskill/ui`
+- [x] `npm run typecheck --workspace @contriskill/ui`
+- [x] `npm run test --workspace @contriskill/ui`
 
 ---
 
