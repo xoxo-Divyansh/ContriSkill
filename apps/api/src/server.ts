@@ -3,12 +3,14 @@ import express from "express";
 import helmet from "helmet";
 
 import type { ApiEnv } from "./config/env";
-import { requestActorMiddleware } from "./middleware/request-actor";
-import { authRouter } from "./modules/auth/routes";
+import { createRequestActorMiddleware } from "./middleware/request-actor";
+import { createAuthRouter } from "./modules/auth/routes";
+import { createAuthSessionRuntime } from "./modules/auth/session";
 import { healthRouter } from "./routes/health";
 
 export const createServer = (env: ApiEnv) => {
   const app = express();
+  const authSessionRuntime = createAuthSessionRuntime(env);
 
   app.use(helmet());
   app.use(
@@ -17,9 +19,14 @@ export const createServer = (env: ApiEnv) => {
     })
   );
   app.use(express.json());
-  app.use(requestActorMiddleware);
+  app.use(createRequestActorMiddleware(authSessionRuntime.sessionResolver));
   app.use("/api/v1", healthRouter);
-  app.use("/api/v1", authRouter);
+  app.use(
+    "/api/v1",
+    createAuthRouter({
+      sessionStore: authSessionRuntime.sessionStore
+    })
+  );
 
   return app;
 };

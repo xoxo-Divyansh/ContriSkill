@@ -53,6 +53,73 @@ describe("auth routes", () => {
     expect(response.body?.data?.actor?.role).toBe("user");
   });
 
+  it("resolves actor from issued session token", async () => {
+    const app = createServer(getApiEnv());
+
+    const loginResponse = await request(app).post("/api/v1/auth/login").send({
+      identifier: "user@example.com",
+      password: "StrongPassword123!"
+    });
+
+    const accessToken: string | undefined = loginResponse.body?.data?.session?.accessToken;
+
+    const meResponse = await request(app)
+      .get("/api/v1/auth/me")
+      .set("x-session-token", accessToken ?? "");
+
+    expect(loginResponse.status).toBe(202);
+    expect(accessToken).toBeDefined();
+    expect(meResponse.status).toBe(200);
+    expect(meResponse.body?.data?.actor?.actorType).toBe("authenticated");
+  });
+
+  it("rotates session tokens on refresh", async () => {
+    const app = createServer(getApiEnv());
+
+    const loginResponse = await request(app).post("/api/v1/auth/login").send({
+      identifier: "user@example.com",
+      password: "StrongPassword123!"
+    });
+
+    const accessToken: string | undefined = loginResponse.body?.data?.session?.accessToken;
+    const refreshToken: string | undefined = loginResponse.body?.data?.session?.refreshToken;
+
+    const refreshResponse = await request(app)
+      .post("/api/v1/auth/refresh")
+      .set("x-session-token", accessToken ?? "")
+      .send({ refreshToken });
+
+    expect(refreshResponse.status).toBe(202);
+    expect(refreshResponse.body?.data?.session?.accessTokenIssued).toBe(true);
+    expect(refreshResponse.body?.data?.session?.refreshTokenIssued).toBe(true);
+    expect(refreshResponse.body?.data?.session?.accessToken).not.toBe(accessToken);
+    expect(refreshResponse.body?.data?.session?.refreshToken).not.toBe(refreshToken);
+  });
+
+  it("revokes active session on logout", async () => {
+    const app = createServer(getApiEnv());
+
+    const loginResponse = await request(app).post("/api/v1/auth/login").send({
+      identifier: "user@example.com",
+      password: "StrongPassword123!"
+    });
+
+    const accessToken: string | undefined = loginResponse.body?.data?.session?.accessToken;
+
+    const logoutResponse = await request(app)
+      .post("/api/v1/auth/logout")
+      .set("x-session-token", accessToken ?? "")
+      .send({});
+
+    const meResponseAfterLogout = await request(app)
+      .get("/api/v1/auth/me")
+      .set("x-session-token", accessToken ?? "");
+
+    expect(logoutResponse.status).toBe(200);
+    expect(logoutResponse.body?.data?.revoked).toBe(true);
+    expect(meResponseAfterLogout.status).toBe(401);
+  });
+
   it("enforces role policy for protected auth routes", async () => {
     const app = createServer(getApiEnv());
     const response = await request(app)

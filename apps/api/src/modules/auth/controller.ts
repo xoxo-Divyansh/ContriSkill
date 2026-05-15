@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
 
+import { resolveAccessTokenFromRequest } from "../../middleware/request-actor";
+
 import type { AuthService } from "./service";
 import type { RequestWithActor } from "./types";
 
@@ -99,7 +101,10 @@ export class AuthController {
       return;
     }
 
-    const payload = await this.service.logout(request.actor);
+    const payload = await this.service.logout(
+      request.actor,
+      resolveAccessTokenFromRequest(request)
+    );
     response.status(httpStatus.ok).json(payload);
   };
 

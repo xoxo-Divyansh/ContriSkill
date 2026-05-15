@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 
 import { isAuthRole } from "../modules/auth/policies";
+import type { SessionResolver } from "../modules/auth/session";
 import {
   authActorTypes,
   authSessionStates,
@@ -25,6 +26,10 @@ const parseHeaderValue = (value: string | string[] | undefined): string | undefi
   return Array.isArray(value) ? value[0] : value;
 };
 
+const sessionTokenHeaderKey = "x-session-token";
+
+const sessionCookieKey = "contriskill_session";
+
 const parseActorType = (value: string | undefined): AuthActorType => {
   if (!value) {
     return defaultRequestActor.actorType;
@@ -45,11 +50,40 @@ const parseSessionState = (value: string | undefined): AuthSessionState => {
     : defaultRequestActor.sessionState;
 };
 
-export const requestActorMiddleware = (
-  request: Request,
-  _response: Response,
-  next: NextFunction
-): void => {
+const parseCookies = (value: string | undefined): Record<string, string> => {
+  if (!value) {
+    return {};
+  }
+
+  return value
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .filter((cookie) => cookie.length > 0)
+    .reduce<Record<string, string>>((accumulator, cookie) => {
+      const separatorIndex = cookie.indexOf("=");
+      if (separatorIndex <= 0) {
+        return accumulator;
+      }
+      const key = cookie.slice(0, separatorIndex).trim();
+      const rawCookieValue = cookie.slice(separatorIndex + 1).trim();
+      accumulator[key] = decodeURIComponent(rawCookieValue);
+      return accumulator;
+    }, {});
+};
+
+export const resolveAccessTokenFromRequest = (request: Request): string | undefined => {
+  const headerToken = parseHeaderValue(request.headers[sessionTokenHeaderKey]);
+  if (headerToken && headerToken.trim().length > 0) {
+    return headerToken.trim();
+  }
+
+  const cookieHeader = parseHeaderValue(request.headers.cookie);
+  const cookies = parseCookies(cookieHeader);
+  const cookieToken = cookies[sessionCookieKey];
+  return cookieToken?.trim().length ? cookieToken.trim() : undefined;
+};
+
+const buildFallbackActorFromHeaders = (request: Request): RequestActor => {
   const actorType = parseActorType(
     parseHeaderValue(request.headers[requestActorHeaderKeys.actorType])
   );
@@ -63,17 +97,25 @@ export const requestActorMiddleware = (
   const role = roleHeader && isAuthRole(roleHeader) ? roleHeader : defaultRequestActor.role;
 
   if (actorType === "authenticated" && userId && sessionState === "authenticated") {
-    request.actor = {
+    return {
       actorType,
       role,
       sessionState,
       userId
     };
-  } else {
-    request.actor = {
-      ...defaultRequestActor
-    };
   }
 
-  next();
+  return {
+    ...defaultRequestActor
+  };
+};
+
+export const createRequestActorMiddleware = (sessionResolver: SessionResolver) => {
+  return (request: Request, _response: Response, next: NextFunction): void => {
+    const accessToken = resolveAccessTokenFromRequest(request);
+    const resolvedActor = sessionResolver.resolveActorByAccessToken(accessToken);
+
+    request.actor = resolvedActor ?? buildFallbackActorFromHeaders(request);
+    next();
+  };
 };
