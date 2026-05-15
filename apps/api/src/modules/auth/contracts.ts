@@ -18,9 +18,13 @@ export type RefreshRequestBody = {
 };
 
 export type PlaceholderAuthSession = {
+  sessionId?: string;
   actor: Pick<RequestActor, "actorType" | "role" | "sessionState">;
-  accessTokenIssued: false;
-  refreshTokenIssued: false;
+  sessionExpiresAt?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  accessTokenIssued: boolean;
+  refreshTokenIssued: boolean;
 };
 
 export type PlaceholderAuthUser = {
@@ -60,7 +64,7 @@ export type RefreshResponse = ApiSuccessEnvelope<{
 
 export type LogoutResponse = ApiSuccessEnvelope<{
   status: AuthPlaceholderStatus;
-  revoked: false;
+  revoked: boolean;
 }>;
 
 export type SessionResponse = ApiSuccessEnvelope<{

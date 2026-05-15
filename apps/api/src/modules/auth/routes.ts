@@ -6,24 +6,25 @@ import { requireRoleMiddleware } from "../../middleware/require-role";
 import { AuthController } from "./controller";
 import { createAuthService } from "./service";
 
-const authRouter = Router();
+export const createAuthRouter = (dependencies: Parameters<typeof createAuthService>[0]) => {
+  const authRouter = Router();
+  const authController = new AuthController(createAuthService(dependencies));
 
-const authController = new AuthController(createAuthService());
+  authRouter.post("/auth/register", authController.register);
+  authRouter.post("/auth/login", authController.login);
+  authRouter.post(
+    "/auth/refresh",
+    requireAuthMiddleware,
+    requireRoleMiddleware("user"),
+    authController.refresh
+  );
+  authRouter.post(
+    "/auth/logout",
+    requireAuthMiddleware,
+    requireRoleMiddleware("user"),
+    authController.logout
+  );
+  authRouter.get("/auth/me", requireAuthMiddleware, authController.session);
 
-authRouter.post("/auth/register", authController.register);
-authRouter.post("/auth/login", authController.login);
-authRouter.post(
-  "/auth/refresh",
-  requireAuthMiddleware,
-  requireRoleMiddleware("user"),
-  authController.refresh
-);
-authRouter.post(
-  "/auth/logout",
-  requireAuthMiddleware,
-  requireRoleMiddleware("user"),
-  authController.logout
-);
-authRouter.get("/auth/me", requireAuthMiddleware, authController.session);
-
-export { authRouter };
+  return authRouter;
+};
