@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@contriskill/ui": "file:../../packages/ui",
     "@contriskill/contracts": "file:../../packages/contracts",
     "@contriskill/domain": "file:../../packages/domain",
     "@contriskill/utils": "file:../../packages/utils",
