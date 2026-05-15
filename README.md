@@ -4,7 +4,7 @@ ContriSkill is a trust-centered contribution platform. This repository is curren
 
 ## Current State
 
-Implemented foundations (Sprint 1 Steps 1-6):
+Implemented foundations (Sprint 1 Steps 1-7):
 
 - shared constants and contracts across workspaces
 - typed environment validation for API and Web
@@ -12,6 +12,7 @@ Implemented foundations (Sprint 1 Steps 1-6):
 - Web API client foundation (typed HTTP client, error normalization, client shells)
 - provider hierarchy foundation
 - route group strategy and composable route wrappers
+- UI design token foundation and theme provider shell (`packages/ui`)
 
 Not implemented yet:
 
