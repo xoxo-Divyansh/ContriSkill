@@ -2,7 +2,7 @@
 
 - **Purpose:** Track Sprint 1 engineering execution with dependency-aware, commit-safe implementation order.
 - **Owner:** Engineering + Architecture
-- **Status:** In progress (Steps 1-7 completed)
+- **Status:** Completed (Steps 1-9 completed)
 - **Related docs:** `sprint1-implementation-plan.md`, `phase1-execution-plan.md`, `mvp-implementation-blueprint.md`
 
 ## Implementation Guardrails
@@ -213,15 +213,15 @@
 
 **Depends on:** Steps 1-8
 
-- [ ] Validate provider + routing + API client integration consistency.
-- [ ] Validate shared constant usage across web/api packages.
-- [ ] Update Sprint 1 status in `docs/03-engineering/sprint1-implementation-plan.md`.
-- [ ] Update `README.md` foundation notes if needed.
-- [ ] Confirm deferred systems remain untouched.
+- [x] Validate provider + routing + API client integration consistency.
+- [x] Validate shared constant usage across web/api packages.
+- [x] Update Sprint 1 status in `docs/03-engineering/sprint1-implementation-plan.md`.
+- [x] Update `README.md` foundation notes if needed.
+- [x] Confirm deferred systems remain untouched.
 
 ### Final Checkpoint
 
-- [ ] `npm run ci`
+- [x] `npm run ci`
 
 ---
 
@@ -235,7 +235,7 @@
 - [ ] `chore(web): add route groups and protected route wrappers`
 - [ ] `chore(ui): add design tokens and theme provider`
 - [ ] `chore(ui): add primitive component foundation`
-- [ ] `docs(engineering): update sprint1 execution status`
+- [x] `docs(engineering): update sprint1 execution status`
 
 ---
 
@@ -247,6 +247,6 @@
 - [x] Provider hierarchy is wired and documented in web root.
 - [x] Route groups and protected route strategy are implemented with policy map.
 - [x] API client core and auth/user client shells are typed and integrated.
-- [ ] UI primitive and design token foundations are implemented.
+- [x] UI primitive and design token foundations are implemented.
 - [x] CI passes (`lint`, `typecheck`, `test`) with Sprint 1 changes.
 - [x] No deferred systems implemented.
