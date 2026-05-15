@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 export * from "./providers/theme-provider.js";
+export * from "./primitives/index.js";
 export * from "./tokens/index.js";
 
 type FoundationShellProps = {

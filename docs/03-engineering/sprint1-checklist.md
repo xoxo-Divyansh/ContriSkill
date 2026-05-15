@@ -190,22 +190,22 @@
 
 **Depends on:** Step 7
 
-- [ ] Create `packages/ui/src/primitives/button.tsx`.
-- [ ] Create `packages/ui/src/primitives/input.tsx`.
-- [ ] Create `packages/ui/src/primitives/label.tsx`.
-- [ ] Create `packages/ui/src/primitives/card.tsx`.
-- [ ] Create `packages/ui/src/primitives/stack.tsx`.
-- [ ] Create `packages/ui/src/primitives/container.tsx`.
-- [ ] Create `packages/ui/src/primitives/text.tsx`.
-- [ ] Create `packages/ui/src/primitives/index.ts`.
-- [ ] Update `packages/ui/src/index.tsx` re-exports.
-- [ ] Add primitive tests in `packages/ui/tests/*`.
+- [x] Create `packages/ui/src/primitives/button.tsx`.
+- [x] Create `packages/ui/src/primitives/input.tsx`.
+- [x] Create `packages/ui/src/primitives/label.tsx`.
+- [x] Create `packages/ui/src/primitives/card.tsx`.
+- [x] Create `packages/ui/src/primitives/stack.tsx`.
+- [x] Create `packages/ui/src/primitives/container.tsx`.
+- [x] Create `packages/ui/src/primitives/text.tsx`.
+- [x] Create `packages/ui/src/primitives/index.ts`.
+- [x] Update `packages/ui/src/index.tsx` re-exports.
+- [x] Add primitive tests in `packages/ui/tests/*`.
 
 ### Checkpoint
 
-- [ ] `npm run lint --workspace @contriskill/ui`
-- [ ] `npm run typecheck --workspace @contriskill/ui`
-- [ ] `npm run test --workspace @contriskill/ui`
+- [x] `npm run lint --workspace @contriskill/ui`
+- [x] `npm run typecheck --workspace @contriskill/ui`
+- [x] `npm run test --workspace @contriskill/ui`
 
 ---
 
