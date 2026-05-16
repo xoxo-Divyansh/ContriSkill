@@ -11,6 +11,7 @@ import {
   type AuthSessionState,
   type RequestActor
 } from "../modules/auth/types";
+import { log } from "../observability/logger";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -112,10 +113,20 @@ const buildFallbackActorFromHeaders = (request: Request): RequestActor => {
 
 export const createRequestActorMiddleware = (sessionResolver: SessionResolver) => {
   return async (request: Request, _response: Response, next: NextFunction): Promise<void> => {
-    const accessToken = resolveAccessTokenFromRequest(request);
-    const resolvedActor = await sessionResolver.resolveActorByAccessToken(accessToken);
+    try {
+      const accessToken = resolveAccessTokenFromRequest(request);
+      const resolvedActor = await sessionResolver.resolveActorByAccessToken(accessToken);
 
-    request.actor = resolvedActor ?? buildFallbackActorFromHeaders(request);
-    next();
+      request.actor = resolvedActor ?? buildFallbackActorFromHeaders(request);
+      next();
+    } catch (error) {
+      log("error", "Request actor resolution failed. Falling back to anonymous actor.", {
+        error: error instanceof Error ? error.message : "unknown"
+      });
+      request.actor = {
+        ...defaultRequestActor
+      };
+      next();
+    }
   };
 };

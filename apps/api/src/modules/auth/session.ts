@@ -1,5 +1,6 @@
 import type { ApiEnv } from "../../config/env";
-import type { DatabaseClient } from "../../db/postgres";
+import type { DatabaseClient, PersistenceRuntimeError } from "../../db/postgres";
+import { log } from "../../observability/logger";
 
 import {
   createAccessToken,
@@ -389,6 +390,7 @@ class DefaultSessionResolver implements SessionResolver {
 export type AuthSessionRuntime = {
   sessionStore: SessionStore;
   sessionResolver: SessionResolver;
+  mode: "memory" | "database" | "database_with_fallback";
 };
 
 export const createInMemorySessionStore = (env: ApiEnv): SessionStore => {
@@ -399,16 +401,107 @@ export const createDbSessionStore = (client: DatabaseClient, env: ApiEnv): Sessi
   return new PostgresSessionStore(client, env.sessionTtlMinutes);
 };
 
+const isPersistenceRuntimeError = (error: unknown): error is PersistenceRuntimeError => {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name: string }).name === "PersistenceRuntimeError"
+  );
+};
+
+class ResilientSessionStore implements SessionStore {
+  private usingFallback = false;
+
+  constructor(
+    private readonly primary: SessionStore,
+    private readonly fallback: SessionStore
+  ) {}
+
+  private get activeStore(): SessionStore {
+    return this.usingFallback ? this.fallback : this.primary;
+  }
+
+  private activateFallback(error: unknown): void {
+    if (this.usingFallback) {
+      return;
+    }
+
+    this.usingFallback = true;
+    const runtimeError = isPersistenceRuntimeError(error) ? error : undefined;
+
+    log("error", "Auth session persistence failed. Falling back to in-memory session store.", {
+      code: runtimeError?.code ?? "UNKNOWN_RUNTIME_ERROR",
+      message: runtimeError?.message ?? (error instanceof Error ? error.message : "unknown")
+    });
+  }
+
+  private async runWithFallback<T>(operation: (store: SessionStore) => Promise<T>): Promise<T> {
+    if (this.usingFallback) {
+      return operation(this.fallback);
+    }
+
+    try {
+      return await operation(this.primary);
+    } catch (error) {
+      this.activateFallback(error);
+      return operation(this.fallback);
+    }
+  }
+
+  async create(input: { userId: string; role: SessionRole }): Promise<AuthSessionRecord> {
+    return this.runWithFallback((store) => store.create(input));
+  }
+
+  async resolveByAccessToken(accessToken: string): Promise<AuthSessionRecord | undefined> {
+    return this.runWithFallback((store) => store.resolveByAccessToken(accessToken));
+  }
+
+  async resolveByRefreshToken(refreshToken: string): Promise<AuthSessionRecord | undefined> {
+    return this.runWithFallback((store) => store.resolveByRefreshToken(refreshToken));
+  }
+
+  async rotateByRefreshToken(refreshToken: string): Promise<AuthSessionRecord | undefined> {
+    return this.runWithFallback((store) => store.rotateByRefreshToken(refreshToken));
+  }
+
+  async revokeByAccessToken(accessToken: string): Promise<boolean> {
+    return this.runWithFallback((store) => store.revokeByAccessToken(accessToken));
+  }
+
+  async revokeBySessionId(sessionId: string): Promise<boolean> {
+    return this.runWithFallback((store) => store.revokeBySessionId(sessionId));
+  }
+
+  async touch(sessionId: string): Promise<void> {
+    await this.runWithFallback((store) => store.touch(sessionId));
+  }
+
+  getMode(): "database" | "database_with_fallback" {
+    return this.usingFallback ? "database_with_fallback" : "database";
+  }
+}
+
 export const createAuthSessionRuntime = (
   env: ApiEnv,
   dependencies: { databaseClient?: DatabaseClient } = {}
 ): AuthSessionRuntime => {
-  const sessionStore = dependencies.databaseClient
-    ? createDbSessionStore(dependencies.databaseClient, env)
-    : createInMemorySessionStore(env);
+  if (!dependencies.databaseClient) {
+    const sessionStore = createInMemorySessionStore(env);
+    return {
+      sessionStore,
+      sessionResolver: new DefaultSessionResolver(sessionStore),
+      mode: "memory"
+    };
+  }
+
+  const dbStore = createDbSessionStore(dependencies.databaseClient, env);
+  const memoryStore = createInMemorySessionStore(env);
+  const resilientStore = new ResilientSessionStore(dbStore, memoryStore);
 
   return {
-    sessionStore,
-    sessionResolver: new DefaultSessionResolver(sessionStore)
+    sessionStore: resilientStore,
+    sessionResolver: new DefaultSessionResolver(resilientStore),
+    mode: resilientStore.getMode()
   };
 };
