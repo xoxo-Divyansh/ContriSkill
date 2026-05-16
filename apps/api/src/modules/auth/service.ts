@@ -61,7 +61,7 @@ class PlaceholderAuthService implements AuthService {
       `OPEN_DECISION_HASH_${payload.password.length}`
     );
 
-    const session = this.dependencies.sessionStore.create({
+    const session = await this.dependencies.sessionStore.create({
       userId: "OPEN_DECISION_user_id",
       role: "user"
     });
@@ -89,7 +89,7 @@ class PlaceholderAuthService implements AuthService {
   async refresh(payload: RefreshRequestBody, actor: RequestActor): Promise<RefreshResponse> {
     const refreshToken = payload.refreshToken;
     const rotatedSession = refreshToken
-      ? this.dependencies.sessionStore.rotateByRefreshToken(refreshToken)
+      ? await this.dependencies.sessionStore.rotateByRefreshToken(refreshToken)
       : undefined;
 
     if (rotatedSession) {
@@ -129,7 +129,7 @@ class PlaceholderAuthService implements AuthService {
     void actor;
 
     const revoked = accessToken
-      ? this.dependencies.sessionStore.revokeByAccessToken(accessToken)
+      ? await this.dependencies.sessionStore.revokeByAccessToken(accessToken)
       : false;
 
     return {

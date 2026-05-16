@@ -111,9 +111,9 @@ const buildFallbackActorFromHeaders = (request: Request): RequestActor => {
 };
 
 export const createRequestActorMiddleware = (sessionResolver: SessionResolver) => {
-  return (request: Request, _response: Response, next: NextFunction): void => {
+  return async (request: Request, _response: Response, next: NextFunction): Promise<void> => {
     const accessToken = resolveAccessTokenFromRequest(request);
-    const resolvedActor = sessionResolver.resolveActorByAccessToken(accessToken);
+    const resolvedActor = await sessionResolver.resolveActorByAccessToken(accessToken);
 
     request.actor = resolvedActor ?? buildFallbackActorFromHeaders(request);
     next();
