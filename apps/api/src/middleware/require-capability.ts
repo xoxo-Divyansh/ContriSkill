@@ -1,13 +1,12 @@
 import type { NextFunction, Request, Response } from "express";
 
-import { assertMinimumRole } from "../modules/auth/authorization";
-import { AuthorizationError } from "../modules/auth/capabilities";
-import type { AuthRole } from "../modules/auth/types";
+import { assertActorCapability } from "../modules/auth/authorization";
+import { AuthorizationError, type AuthCapability } from "../modules/auth/capabilities";
 
-export const requireRoleMiddleware = (minimumRole: AuthRole) => {
+export const requireCapabilityMiddleware = (capability: AuthCapability) => {
   return (request: Request, response: Response, next: NextFunction): void => {
     try {
-      assertMinimumRole(request.actor, minimumRole);
+      assertActorCapability(request.actor, capability);
       next();
     } catch (error) {
       if (error instanceof AuthorizationError) {
