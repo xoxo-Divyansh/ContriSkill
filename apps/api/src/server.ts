@@ -3,6 +3,7 @@ import express from "express";
 import helmet from "helmet";
 
 import type { ApiEnv } from "./config/env";
+import { createPostgresClient } from "./db/postgres";
 import { createRequestActorMiddleware } from "./middleware/request-actor";
 import { createAuthRouter } from "./modules/auth/routes";
 import { createAuthSessionRuntime } from "./modules/auth/session";
@@ -10,7 +11,11 @@ import { healthRouter } from "./routes/health";
 
 export const createServer = (env: ApiEnv) => {
   const app = express();
-  const authSessionRuntime = createAuthSessionRuntime(env);
+  const databaseClient = createPostgresClient(env);
+  const authSessionRuntime = createAuthSessionRuntime(
+    env,
+    databaseClient ? { databaseClient } : {}
+  );
 
   app.use(helmet());
   app.use(

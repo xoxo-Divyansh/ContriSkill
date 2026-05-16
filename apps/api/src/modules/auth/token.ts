@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import type { RefreshToken, SessionIdentifier, SessionToken } from "./types";
 
@@ -30,4 +30,8 @@ export const createFutureIsoTimestamp = (minutesFromNow: number): string => {
 
 export const nowIsoTimestamp = (): string => {
   return new Date().toISOString();
+};
+
+export const hashSessionToken = (token: string): string => {
+  return createHash("sha256").update(token).digest("hex");
 };
