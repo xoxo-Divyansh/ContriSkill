@@ -3,6 +3,7 @@ import { Router } from "express";
 import type { ApiEnv } from "../../config/env";
 import type { DatabaseClient } from "../../db/postgres";
 import { requireAuthMiddleware } from "../../middleware/require-auth";
+import { requireCapabilityMiddleware } from "../../middleware/require-capability";
 import { requireRoleMiddleware } from "../../middleware/require-role";
 
 import { AuthController } from "./controller";
@@ -30,16 +31,23 @@ export const createAuthRouter = (dependencies: {
   authRouter.post(
     "/auth/refresh",
     requireAuthMiddleware,
+    requireCapabilityMiddleware("auth:refresh"),
     requireRoleMiddleware("user"),
     authController.refresh
   );
   authRouter.post(
     "/auth/logout",
     requireAuthMiddleware,
+    requireCapabilityMiddleware("auth:logout"),
     requireRoleMiddleware("user"),
     authController.logout
   );
-  authRouter.get("/auth/me", requireAuthMiddleware, authController.session);
+  authRouter.get(
+    "/auth/me",
+    requireAuthMiddleware,
+    requireCapabilityMiddleware("auth:session:read"),
+    authController.session
+  );
 
   return authRouter;
 };

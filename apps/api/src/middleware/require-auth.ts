@@ -1,25 +1,28 @@
 import type { NextFunction, Request, Response } from "express";
 
+import { assertAuthenticatedActor } from "../modules/auth/authorization";
+import { AuthorizationError } from "../modules/auth/capabilities";
+
 export const requireAuthMiddleware = (
   request: Request,
   response: Response,
   next: NextFunction
 ): void => {
-  const actor = request.actor;
-
-  if (
-    actor?.actorType === "authenticated" &&
-    actor.sessionState === "authenticated" &&
-    actor.userId
-  ) {
+  try {
+    assertAuthenticatedActor(request.actor);
     next();
     return;
-  }
-
-  response.status(401).json({
-    error: {
-      code: "UNAUTHENTICATED",
-      message: "Authentication is required for this endpoint."
+  } catch (error) {
+    if (error instanceof AuthorizationError) {
+      response.status(401).json({
+        error: {
+          code: "UNAUTHENTICATED",
+          message: error.message
+        }
+      });
+      return;
     }
-  });
+
+    next(error);
+  }
 };
