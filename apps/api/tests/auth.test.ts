@@ -36,6 +36,22 @@ describe("auth routes", () => {
     expect(response.body?.error?.code).toBe("VALIDATION_ERROR");
   });
 
+  it("returns conflict when registering duplicate identity", async () => {
+    const app = createServer(getApiEnv());
+    const payload = {
+      email: "duplicate@example.com",
+      username: "duplicateUser",
+      password: "StrongPassword123!"
+    };
+
+    const firstResponse = await request(app).post("/api/v1/auth/register").send(payload);
+    const secondResponse = await request(app).post("/api/v1/auth/register").send(payload);
+
+    expect(firstResponse.status).toBe(202);
+    expect(secondResponse.status).toBe(409);
+    expect(secondResponse.body?.error?.code).toBe("STATE_CONFLICT");
+  });
+
   it("blocks protected session endpoint when actor is anonymous", async () => {
     const app = createServer(getApiEnv());
     const response = await request(app).get("/api/v1/auth/me");
@@ -56,8 +72,14 @@ describe("auth routes", () => {
   it("resolves actor from issued session token", async () => {
     const app = createServer(getApiEnv());
 
+    await request(app).post("/api/v1/auth/register").send({
+      email: "identity@example.com",
+      username: "identityUser",
+      password: "StrongPassword123!"
+    });
+
     const loginResponse = await request(app).post("/api/v1/auth/login").send({
-      identifier: "user@example.com",
+      identifier: "identity@example.com",
       password: "StrongPassword123!"
     });
 
@@ -76,8 +98,14 @@ describe("auth routes", () => {
   it("rotates session tokens on refresh", async () => {
     const app = createServer(getApiEnv());
 
+    await request(app).post("/api/v1/auth/register").send({
+      email: "rotate@example.com",
+      username: "rotateUser",
+      password: "StrongPassword123!"
+    });
+
     const loginResponse = await request(app).post("/api/v1/auth/login").send({
-      identifier: "user@example.com",
+      identifier: "rotate@example.com",
       password: "StrongPassword123!"
     });
 
@@ -99,8 +127,14 @@ describe("auth routes", () => {
   it("revokes active session on logout", async () => {
     const app = createServer(getApiEnv());
 
+    await request(app).post("/api/v1/auth/register").send({
+      email: "logout@example.com",
+      username: "logoutUser",
+      password: "StrongPassword123!"
+    });
+
     const loginResponse = await request(app).post("/api/v1/auth/login").send({
-      identifier: "user@example.com",
+      identifier: "logout@example.com",
       password: "StrongPassword123!"
     });
 
@@ -118,6 +152,24 @@ describe("auth routes", () => {
     expect(logoutResponse.status).toBe(200);
     expect(logoutResponse.body?.data?.revoked).toBe(true);
     expect(meResponseAfterLogout.status).toBe(401);
+  });
+
+  it("rejects login with invalid password for persisted identity", async () => {
+    const app = createServer(getApiEnv());
+
+    await request(app).post("/api/v1/auth/register").send({
+      email: "invalid-pass@example.com",
+      username: "invalidPassUser",
+      password: "StrongPassword123!"
+    });
+
+    const loginResponse = await request(app).post("/api/v1/auth/login").send({
+      identifier: "invalid-pass@example.com",
+      password: "WrongPassword123!"
+    });
+
+    expect(loginResponse.status).toBe(401);
+    expect(loginResponse.body?.error?.code).toBe("UNAUTHENTICATED");
   });
 
   it("enforces role policy for protected auth routes", async () => {

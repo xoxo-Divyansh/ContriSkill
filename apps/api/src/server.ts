@@ -39,7 +39,9 @@ export const createServer = (
   app.use(
     "/api/v1",
     createAuthRouter({
-      sessionStore: authSessionRuntime.sessionStore
+      env,
+      sessionStore: authSessionRuntime.sessionStore,
+      ...(databaseClient ? { databaseClient } : {})
     })
   );
 
