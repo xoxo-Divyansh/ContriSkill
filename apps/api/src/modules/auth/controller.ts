@@ -2,17 +2,19 @@ import type { Request, Response } from "express";
 
 import { resolveAccessTokenFromRequest } from "../../middleware/request-actor";
 
+import { AuthIdentityRuntimeError } from "./identity";
 import type { AuthService } from "./service";
 import type { RequestWithActor } from "./types";
 
-type ApiErrorCode = "UNAUTHENTICATED" | "FORBIDDEN" | "VALIDATION_ERROR";
+type ApiErrorCode = "UNAUTHENTICATED" | "FORBIDDEN" | "VALIDATION_ERROR" | "STATE_CONFLICT";
 
 const httpStatus = {
   accepted: 202,
   ok: 200,
   unauthorized: 401,
   forbidden: 403,
-  badRequest: 400
+  badRequest: 400,
+  conflict: 409
 } as const;
 
 const sendError = (
@@ -49,8 +51,16 @@ export class AuthController {
       return;
     }
 
-    const payload = await this.service.register({ email, password, username });
-    response.status(httpStatus.accepted).json(payload);
+    try {
+      const payload = await this.service.register({ email, password, username });
+      response.status(httpStatus.accepted).json(payload);
+    } catch (error) {
+      if (error instanceof AuthIdentityRuntimeError && error.code === "IDENTITY_ALREADY_EXISTS") {
+        sendError(response, httpStatus.conflict, "STATE_CONFLICT", error.message);
+        return;
+      }
+      throw error;
+    }
   };
 
   login = async (request: Request, response: Response): Promise<void> => {
@@ -69,8 +79,16 @@ export class AuthController {
       return;
     }
 
-    const payload = await this.service.login({ identifier, password });
-    response.status(httpStatus.accepted).json(payload);
+    try {
+      const payload = await this.service.login({ identifier, password });
+      response.status(httpStatus.accepted).json(payload);
+    } catch (error) {
+      if (error instanceof AuthIdentityRuntimeError && error.code === "INVALID_CREDENTIALS") {
+        sendError(response, httpStatus.unauthorized, "UNAUTHENTICATED", error.message);
+        return;
+      }
+      throw error;
+    }
   };
 
   refresh = async (request: RequestWithActor, response: Response): Promise<void> => {

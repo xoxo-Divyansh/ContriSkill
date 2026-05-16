@@ -58,8 +58,14 @@ describe("auth runtime hardening", () => {
       )
     });
 
+    await request(app).post("/api/v1/auth/register").send({
+      email: "fallback@example.com",
+      username: "fallbackUser",
+      password: "StrongPassword123!"
+    });
+
     const loginResponse = await request(app).post("/api/v1/auth/login").send({
-      identifier: "user@example.com",
+      identifier: "fallback@example.com",
       password: "StrongPassword123!"
     });
 
