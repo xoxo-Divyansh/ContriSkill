@@ -2,6 +2,8 @@ import type { ContributionCollaborationState, ContributionPostState } from "./ty
 
 export const contributionEventTypes = [
   "post.created",
+  "post.updated",
+  "post.state_changed",
   "application.submitted",
   "application.accepted",
   "application.rejected",

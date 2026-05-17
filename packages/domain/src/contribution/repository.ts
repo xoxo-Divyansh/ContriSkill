@@ -17,6 +17,10 @@ export type CreateContributionPostInput = {
 export type ContributionRepository = {
   createPost(input: CreateContributionPostInput): Promise<ContributionPost>;
   getPostById(postId: string): Promise<ContributionPost | undefined>;
+  updatePostDetails(
+    postId: string,
+    update: Partial<Pick<ContributionPost, "title" | "description" | "difficulty" | "creditOffer">>
+  ): Promise<ContributionPost>;
   updatePostState(postId: string, state: ContributionPost["state"]): Promise<ContributionPost>;
 
   createApplication(input: {

@@ -6,6 +6,12 @@ export const authCapabilities = [
   "auth:refresh",
   "auth:logout",
   "auth:session:read",
+  "contribution:create",
+  "contribution:update",
+  "contribution:cancel",
+  "contribution:state:transition",
+  "contribution:application:submit",
+  "contribution:application:accept",
   "moderation:case:read",
   "moderation:case:write",
   "admin:roles:manage"
@@ -15,13 +21,49 @@ export type AuthCapability = (typeof authCapabilities)[number];
 
 const roleCapabilities: Record<AuthRole, readonly AuthCapability[]> = {
   public: ["auth:register", "auth:login"],
-  user: ["auth:refresh", "auth:logout", "auth:session:read"],
-  participant: ["auth:refresh", "auth:logout", "auth:session:read"],
-  owner: ["auth:refresh", "auth:logout", "auth:session:read"],
+  user: [
+    "auth:refresh",
+    "auth:logout",
+    "auth:session:read",
+    "contribution:create",
+    "contribution:update",
+    "contribution:cancel",
+    "contribution:state:transition",
+    "contribution:application:submit",
+    "contribution:application:accept"
+  ],
+  participant: [
+    "auth:refresh",
+    "auth:logout",
+    "auth:session:read",
+    "contribution:create",
+    "contribution:update",
+    "contribution:cancel",
+    "contribution:state:transition",
+    "contribution:application:submit",
+    "contribution:application:accept"
+  ],
+  owner: [
+    "auth:refresh",
+    "auth:logout",
+    "auth:session:read",
+    "contribution:create",
+    "contribution:update",
+    "contribution:cancel",
+    "contribution:state:transition",
+    "contribution:application:submit",
+    "contribution:application:accept"
+  ],
   moderator: [
     "auth:refresh",
     "auth:logout",
     "auth:session:read",
+    "contribution:create",
+    "contribution:update",
+    "contribution:cancel",
+    "contribution:state:transition",
+    "contribution:application:submit",
+    "contribution:application:accept",
     "moderation:case:read",
     "moderation:case:write"
   ],
@@ -29,6 +71,12 @@ const roleCapabilities: Record<AuthRole, readonly AuthCapability[]> = {
     "auth:refresh",
     "auth:logout",
     "auth:session:read",
+    "contribution:create",
+    "contribution:update",
+    "contribution:cancel",
+    "contribution:state:transition",
+    "contribution:application:submit",
+    "contribution:application:accept",
     "moderation:case:read",
     "moderation:case:write",
     "admin:roles:manage"
