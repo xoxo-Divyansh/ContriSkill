@@ -45,7 +45,13 @@ export const createServer = (
       ...(databaseClient ? { databaseClient } : {})
     })
   );
-  app.use("/api/v1", createContributionRouter());
+  app.use(
+    "/api/v1",
+    createContributionRouter({
+      env,
+      ...(databaseClient ? { databaseClient } : {})
+    })
+  );
 
   return app;
 };
