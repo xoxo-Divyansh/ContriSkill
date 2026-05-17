@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type {
   ContributionApplication,
   ContributionCollaboration,
@@ -7,6 +9,102 @@ import type {
   ContributionRepository,
   CreateContributionPostInput
 } from "@contriskill/domain";
+
+import type { ApiEnv } from "../../config/env";
+import type { DatabaseClient } from "../../db/postgres";
+import { log } from "../../observability/logger";
+
+type ContributionPostRow = {
+  id: string;
+  creator_user_id: string;
+  post_type: ContributionPost["type"];
+  title: string;
+  description: string;
+  difficulty: ContributionPost["difficulty"];
+  credit_offer: number;
+  state: ContributionPost["state"];
+  created_at: string | Date;
+};
+
+type ContributionApplicationRow = {
+  id: string;
+  post_id: string;
+  applicant_user_id: string;
+  message: string;
+  created_at: string | Date;
+};
+
+type ContributionCollaborationRow = {
+  id: string;
+  post_id: string;
+  requester_user_id: string;
+  contributor_user_id: string;
+  state: ContributionCollaboration["state"];
+  started_at: string | Date | null;
+  completed_at: string | Date | null;
+};
+
+type ContributionEventRow = {
+  id: string;
+  aggregate_type: ContributionDomainEvent["aggregateType"];
+  aggregate_id: string;
+  event_type: ContributionDomainEvent["type"];
+  actor_user_id: string | null;
+  payload_json: Record<string, string | number | boolean | null> | null;
+  occurred_at: string | Date;
+};
+
+const toIso = (value: string | Date): string => {
+  return value instanceof Date ? value.toISOString() : value;
+};
+
+const toPost = (row: ContributionPostRow): ContributionPost => {
+  return {
+    id: row.id,
+    creatorUserId: row.creator_user_id,
+    type: row.post_type,
+    title: row.title,
+    description: row.description,
+    difficulty: row.difficulty,
+    creditOffer: row.credit_offer,
+    state: row.state,
+    createdAt: toIso(row.created_at)
+  };
+};
+
+const toApplication = (row: ContributionApplicationRow): ContributionApplication => {
+  return {
+    id: row.id,
+    postId: row.post_id,
+    applicantUserId: row.applicant_user_id,
+    message: row.message,
+    createdAt: toIso(row.created_at)
+  };
+};
+
+const toCollaboration = (row: ContributionCollaborationRow): ContributionCollaboration => {
+  return {
+    id: row.id,
+    postId: row.post_id,
+    requesterUserId: row.requester_user_id,
+    contributorUserId: row.contributor_user_id,
+    state: row.state,
+    ...(row.started_at ? { startedAt: toIso(row.started_at) } : {}),
+    ...(row.completed_at ? { completedAt: toIso(row.completed_at) } : {})
+  };
+};
+
+const toEvent = (row: ContributionEventRow): ContributionDomainEvent => {
+  return {
+    id: row.id,
+    aggregateType: row.aggregate_type,
+    aggregateId: row.aggregate_id,
+    type: row.event_type,
+    occurredAt: toIso(row.occurred_at),
+    ...(row.actor_user_id ? { actorUserId: row.actor_user_id } : {}),
+    ...(row.payload_json ? { payload: row.payload_json } : {})
+  };
+};
 
 class InMemoryContributionRepository implements ContributionRepository {
   private readonly posts = new Map<string, ContributionPost>();
@@ -43,10 +141,7 @@ class InMemoryContributionRepository implements ContributionRepository {
       throw new Error("contribution post not found");
     }
 
-    const updated: ContributionPost = {
-      ...existing,
-      ...update
-    };
+    const updated: ContributionPost = { ...existing, ...update };
     this.posts.set(postId, updated);
     return updated;
   }
@@ -60,10 +155,7 @@ class InMemoryContributionRepository implements ContributionRepository {
       throw new Error("contribution post not found");
     }
 
-    const updated: ContributionPost = {
-      ...existing,
-      state
-    };
+    const updated: ContributionPost = { ...existing, state };
     this.posts.set(postId, updated);
     return updated;
   }
@@ -123,10 +215,7 @@ class InMemoryContributionRepository implements ContributionRepository {
       throw new Error("contribution collaboration not found");
     }
 
-    const updated: ContributionCollaboration = {
-      ...existing,
-      state
-    };
+    const updated: ContributionCollaboration = { ...existing, state };
     this.collaborations.set(collaborationId, updated);
     return updated;
   }
@@ -150,10 +239,238 @@ class InMemoryContributionEventRepository implements ContributionEventRepository
   }
 }
 
-export const createContributionRepository = (): ContributionRepository => {
-  return new InMemoryContributionRepository();
+class DbContributionRepository implements ContributionRepository {
+  constructor(private readonly client: DatabaseClient) {}
+
+  async createPost(input: CreateContributionPostInput): Promise<ContributionPost> {
+    const result = await this.client.query<ContributionPostRow>(
+      `insert into contribution_posts
+       (id, creator_user_id, post_type, title, description, difficulty, credit_offer, state, created_at, updated_at)
+       values ($1, $2, $3, $4, $5, $6, $7, 'open', now(), now())
+       returning id, creator_user_id, post_type, title, description, difficulty, credit_offer, state, created_at`,
+      [
+        `post_${randomUUID()}`,
+        input.creatorUserId,
+        input.type,
+        input.title,
+        input.description,
+        input.difficulty,
+        input.creditOffer
+      ]
+    );
+
+    return toPost(result.rows[0] as ContributionPostRow);
+  }
+
+  async getPostById(postId: string): Promise<ContributionPost | undefined> {
+    const result = await this.client.query<ContributionPostRow>(
+      `select id, creator_user_id, post_type, title, description, difficulty, credit_offer, state, created_at
+       from contribution_posts
+       where id = $1
+       limit 1`,
+      [postId]
+    );
+    const row = result.rows[0];
+    return row ? toPost(row) : undefined;
+  }
+
+  async updatePostDetails(
+    postId: string,
+    update: Partial<Pick<ContributionPost, "title" | "description" | "difficulty" | "creditOffer">>
+  ): Promise<ContributionPost> {
+    const existing = await this.getPostById(postId);
+    if (!existing) {
+      throw new Error("contribution post not found");
+    }
+
+    const result = await this.client.query<ContributionPostRow>(
+      `update contribution_posts
+       set title = $1,
+           description = $2,
+           difficulty = $3,
+           credit_offer = $4,
+           updated_at = now()
+       where id = $5
+       returning id, creator_user_id, post_type, title, description, difficulty, credit_offer, state, created_at`,
+      [
+        update.title ?? existing.title,
+        update.description ?? existing.description,
+        update.difficulty ?? existing.difficulty,
+        update.creditOffer ?? existing.creditOffer,
+        postId
+      ]
+    );
+
+    return toPost(result.rows[0] as ContributionPostRow);
+  }
+
+  async updatePostState(
+    postId: string,
+    state: ContributionPost["state"]
+  ): Promise<ContributionPost> {
+    const result = await this.client.query<ContributionPostRow>(
+      `update contribution_posts
+       set state = $1,
+           updated_at = now()
+       where id = $2
+       returning id, creator_user_id, post_type, title, description, difficulty, credit_offer, state, created_at`,
+      [state, postId]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("contribution post not found");
+    }
+
+    return toPost(row);
+  }
+
+  async createApplication(input: {
+    postId: string;
+    applicantUserId: string;
+    message: string;
+  }): Promise<ContributionApplication> {
+    const result = await this.client.query<ContributionApplicationRow>(
+      `insert into contribution_applications
+       (id, post_id, applicant_user_id, message, created_at)
+       values ($1, $2, $3, $4, now())
+       returning id, post_id, applicant_user_id, message, created_at`,
+      [`app_${randomUUID()}`, input.postId, input.applicantUserId, input.message]
+    );
+
+    return toApplication(result.rows[0] as ContributionApplicationRow);
+  }
+
+  async listApplicationsByPost(postId: string): Promise<ContributionApplication[]> {
+    const result = await this.client.query<ContributionApplicationRow>(
+      `select id, post_id, applicant_user_id, message, created_at
+       from contribution_applications
+       where post_id = $1
+       order by created_at asc`,
+      [postId]
+    );
+
+    return result.rows.map(toApplication);
+  }
+
+  async createCollaboration(input: {
+    postId: string;
+    requesterUserId: string;
+    contributorUserId: string;
+  }): Promise<ContributionCollaboration> {
+    const result = await this.client.query<ContributionCollaborationRow>(
+      `insert into contribution_collaborations
+       (id, post_id, requester_user_id, contributor_user_id, state, started_at, completed_at, created_at, updated_at)
+       values ($1, $2, $3, $4, 'pending', null, null, now(), now())
+       returning id, post_id, requester_user_id, contributor_user_id, state, started_at, completed_at`,
+      [`col_${randomUUID()}`, input.postId, input.requesterUserId, input.contributorUserId]
+    );
+
+    return toCollaboration(result.rows[0] as ContributionCollaborationRow);
+  }
+
+  async getCollaborationById(
+    collaborationId: string
+  ): Promise<ContributionCollaboration | undefined> {
+    const result = await this.client.query<ContributionCollaborationRow>(
+      `select id, post_id, requester_user_id, contributor_user_id, state, started_at, completed_at
+       from contribution_collaborations
+       where id = $1
+       limit 1`,
+      [collaborationId]
+    );
+    const row = result.rows[0];
+    return row ? toCollaboration(row) : undefined;
+  }
+
+  async updateCollaborationState(
+    collaborationId: string,
+    state: ContributionCollaboration["state"]
+  ): Promise<ContributionCollaboration> {
+    const result = await this.client.query<ContributionCollaborationRow>(
+      `update contribution_collaborations
+       set state = $1,
+           updated_at = now()
+       where id = $2
+       returning id, post_id, requester_user_id, contributor_user_id, state, started_at, completed_at`,
+      [state, collaborationId]
+    );
+    const row = result.rows[0];
+    if (!row) {
+      throw new Error("contribution collaboration not found");
+    }
+    return toCollaboration(row);
+  }
+}
+
+class DbContributionEventRepository implements ContributionEventRepository {
+  constructor(private readonly client: DatabaseClient) {}
+
+  async appendEvent(event: ContributionDomainEvent): Promise<void> {
+    await this.client.query(
+      `insert into contribution_events
+       (id, aggregate_type, aggregate_id, event_type, actor_user_id, payload_json, occurred_at, created_at)
+       values ($1, $2, $3, $4, $5, $6, $7, now())`,
+      [
+        event.id,
+        event.aggregateType,
+        event.aggregateId,
+        event.type,
+        event.actorUserId ?? null,
+        event.payload ?? null,
+        event.occurredAt
+      ]
+    );
+  }
+
+  async listEventsByAggregate(input: {
+    aggregateType: ContributionDomainEvent["aggregateType"];
+    aggregateId: string;
+  }): Promise<ContributionDomainEvent[]> {
+    const result = await this.client.query<ContributionEventRow>(
+      `select id, aggregate_type, aggregate_id, event_type, actor_user_id, payload_json, occurred_at
+       from contribution_events
+       where aggregate_type = $1 and aggregate_id = $2
+       order by occurred_at asc`,
+      [input.aggregateType, input.aggregateId]
+    );
+
+    return result.rows.map(toEvent);
+  }
+}
+
+const createInMemoryRepositories = (): {
+  repository: ContributionRepository;
+  eventRepository: ContributionEventRepository;
+} => {
+  return {
+    repository: new InMemoryContributionRepository(),
+    eventRepository: new InMemoryContributionEventRepository()
+  };
 };
 
-export const createContributionEventRepository = (): ContributionEventRepository => {
-  return new InMemoryContributionEventRepository();
+export const createContributionPersistenceRuntime = (
+  env: ApiEnv,
+  dependencies: { databaseClient?: DatabaseClient } = {}
+): {
+  repository: ContributionRepository;
+  eventRepository: ContributionEventRepository;
+} => {
+  void env;
+
+  if (!dependencies.databaseClient) {
+    return createInMemoryRepositories();
+  }
+
+  try {
+    return {
+      repository: new DbContributionRepository(dependencies.databaseClient),
+      eventRepository: new DbContributionEventRepository(dependencies.databaseClient)
+    };
+  } catch (error) {
+    log("error", "Contribution DB persistence initialization failed. Falling back to memory.", {
+      error: error instanceof Error ? error.message : "unknown"
+    });
+    return createInMemoryRepositories();
+  }
 };

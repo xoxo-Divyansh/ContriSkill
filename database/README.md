@@ -7,5 +7,5 @@ This directory holds database implementation assets for MVP execution:
 
 Not included yet:
 
-- product schema implementation
-- business-specific migrations
+- broader product schema beyond auth + contribution foundations
+- business-specific migrations beyond current Sprint 2 / Phase 2 scope

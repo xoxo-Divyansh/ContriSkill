@@ -8,6 +8,7 @@ export type DatabaseClient = {
     text: string,
     values?: readonly unknown[]
   ): Promise<{ rows: T[] }>;
+  transaction?<T>(work: (client: DatabaseClient) => Promise<T>): Promise<T>;
 };
 
 export type PersistenceRuntimeErrorCode =
@@ -73,6 +74,40 @@ class PostgresClient implements DatabaseClient {
       };
     } catch (error) {
       throw mapPersistenceError(error);
+    }
+  }
+
+  async transaction<T>(work: (client: DatabaseClient) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("begin");
+      const transactionalClient: DatabaseClient = {
+        query: async <TRow extends QueryResultRow = QueryResultRow>(
+          text: string,
+          values: readonly unknown[] = []
+        ): Promise<{ rows: TRow[] }> => {
+          try {
+            const result = await client.query<TRow>(text, [...values]);
+            return { rows: result.rows };
+          } catch (error) {
+            throw mapPersistenceError(error);
+          }
+        }
+      };
+      const result = await work(transactionalClient);
+      await client.query("commit");
+      return result;
+    } catch (error) {
+      try {
+        await client.query("rollback");
+      } catch (rollbackError) {
+        log("error", "Failed to rollback database transaction.", {
+          error: rollbackError instanceof Error ? rollbackError.message : "unknown"
+        });
+      }
+      throw error;
+    } finally {
+      client.release();
     }
   }
 }

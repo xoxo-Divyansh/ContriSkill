@@ -1,17 +1,28 @@
 import { Router } from "express";
 
+import type { ApiEnv } from "../../config/env";
+import type { DatabaseClient } from "../../db/postgres";
 import { requireAuthMiddleware } from "../../middleware/require-auth";
 import { requireCapabilityMiddleware } from "../../middleware/require-capability";
 
 import { ContributionController } from "./controller";
-import { createContributionEventRepository, createContributionRepository } from "./repository";
+import { createContributionPersistenceRuntime } from "./repository";
 import { createContributionService } from "./service";
+import { createContributionUnitOfWork } from "./unit-of-work";
 
-export const createContributionRouter = () => {
+export const createContributionRouter = (dependencies: {
+  env: ApiEnv;
+  databaseClient?: DatabaseClient;
+}) => {
   const contributionRouter = Router();
+  const runtime = createContributionPersistenceRuntime(dependencies.env, {
+    ...(dependencies.databaseClient ? { databaseClient: dependencies.databaseClient } : {})
+  });
+  const unitOfWork = createContributionUnitOfWork(dependencies.databaseClient);
   const contributionService = createContributionService({
-    repository: createContributionRepository(),
-    eventRepository: createContributionEventRepository()
+    repository: runtime.repository,
+    eventRepository: runtime.eventRepository,
+    ...(unitOfWork ? { unitOfWork } : {})
   });
   const contributionController = new ContributionController(contributionService);
 
