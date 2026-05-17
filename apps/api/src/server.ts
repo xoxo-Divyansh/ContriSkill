@@ -7,6 +7,7 @@ import { createPostgresClient } from "./db/postgres";
 import { createRequestActorMiddleware } from "./middleware/request-actor";
 import { createAuthRouter } from "./modules/auth/routes";
 import { createAuthSessionRuntime } from "./modules/auth/session";
+import { createContributionRouter } from "./modules/contribution/routes";
 import { log } from "./observability/logger";
 import { healthRouter } from "./routes/health";
 
@@ -44,6 +45,7 @@ export const createServer = (
       ...(databaseClient ? { databaseClient } : {})
     })
   );
+  app.use("/api/v1", createContributionRouter());
 
   return app;
 };
