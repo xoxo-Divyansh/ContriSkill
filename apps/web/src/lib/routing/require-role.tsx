@@ -9,7 +9,7 @@ import type { SessionSnapshot } from "../../types/session";
 import { hasRequiredRole, isAuthenticatedSession, routePaths } from "./route-policy";
 
 export type RequireRoleProps = {
-  children: ReactNode;
+  children?: ReactNode;
   minimumRole: Role;
   fallback?: ReactNode;
 };
@@ -33,7 +33,7 @@ export const RequireRole = ({ children, minimumRole, fallback }: RequireRoleProp
     <>
       {fallback ?? (
         <div data-route-intent={`redirect:${routePaths.signIn}`}>
-          OPEN_DECISION_ROUTE_GUARD_REQUIRE_ROLE:{minimumRole}
+          ROUTE_GUARD_REQUIRE_ROLE:{minimumRole}
         </div>
       )}
     </>

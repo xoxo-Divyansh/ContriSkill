@@ -7,6 +7,8 @@ export type SessionSnapshot = {
   role: Role;
   sessionState: SessionState;
   userId: string | undefined;
+  accessToken?: string;
+  refreshToken?: string;
 };
 
 export type SessionContextValue = {

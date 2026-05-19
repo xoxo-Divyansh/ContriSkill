@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import type { AuthClient } from "../src/lib/api/auth-client";
+import type { ContributionClient } from "../src/lib/api/contribution-client";
 import type { HttpClient } from "../src/lib/api/types";
 import type { UserClient } from "../src/lib/api/user-client";
 import { useApiClient, type ApiClientProviderValue } from "../src/providers/api-client-provider";
@@ -103,10 +104,44 @@ const createStubUserClient = (): UserClient => {
   };
 };
 
+const createStubContributionClient = (): ContributionClient => {
+  return {
+    createPost: async () =>
+      Promise.resolve({
+        id: "post_1",
+        creatorUserId: "usr_placeholder",
+        type: "mentorship",
+        title: "Placeholder",
+        description: "Placeholder",
+        difficulty: "low",
+        creditOffer: 10,
+        state: "open",
+        createdAt: new Date().toISOString()
+      }),
+    submitApplication: async () =>
+      Promise.resolve({
+        id: "app_1",
+        postId: "post_1",
+        applicantUserId: "usr_placeholder",
+        message: "I can help",
+        createdAt: new Date().toISOString()
+      }),
+    acceptApplication: async () =>
+      Promise.resolve({
+        id: "col_1",
+        postId: "post_1",
+        requesterUserId: "usr_placeholder",
+        contributorUserId: "usr_contributor",
+        state: "pending"
+      })
+  };
+};
+
 const createStubApiClients = (): ApiClientProviderValue => {
   return {
     httpClient: createStubHttpClient(),
     authClient: createStubAuthClient(),
+    contributionClient: createStubContributionClient(),
     userClient: createStubUserClient()
   };
 };

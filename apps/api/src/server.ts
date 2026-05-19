@@ -11,6 +11,25 @@ import { createContributionRouter } from "./modules/contribution/routes";
 import { log } from "./observability/logger";
 import { healthRouter } from "./routes/health";
 
+const getCorsAllowedOrigins = (configuredOrigin: string): string[] => {
+  const configuredUrl = new URL(configuredOrigin);
+  const allowedOrigins = new Set<string>([configuredUrl.origin]);
+
+  if (configuredUrl.hostname === "localhost") {
+    const loopbackUrl = new URL(configuredUrl.toString());
+    loopbackUrl.hostname = "127.0.0.1";
+    allowedOrigins.add(loopbackUrl.origin);
+  }
+
+  if (configuredUrl.hostname === "127.0.0.1") {
+    const localhostUrl = new URL(configuredUrl.toString());
+    localhostUrl.hostname = "localhost";
+    allowedOrigins.add(localhostUrl.origin);
+  }
+
+  return [...allowedOrigins];
+};
+
 export const createServer = (
   env: ApiEnv,
   dependencies: {
@@ -18,6 +37,7 @@ export const createServer = (
   } = {}
 ) => {
   const app = express();
+  const corsAllowedOrigins = getCorsAllowedOrigins(env.wsCorsOrigin);
   const databaseClient = dependencies.databaseClientOverride ?? createPostgresClient(env);
   const authSessionRuntime = createAuthSessionRuntime(
     env,
@@ -31,7 +51,14 @@ export const createServer = (
   app.use(helmet());
   app.use(
     cors({
-      origin: env.wsCorsOrigin
+      origin: (requestOrigin, callback) => {
+        if (!requestOrigin || corsAllowedOrigins.includes(requestOrigin)) {
+          callback(null, true);
+          return;
+        }
+
+        callback(new Error(`Origin ${requestOrigin} is not allowed by CORS.`));
+      }
     })
   );
   app.use(express.json());

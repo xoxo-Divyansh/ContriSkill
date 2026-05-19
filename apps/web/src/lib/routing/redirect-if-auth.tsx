@@ -26,9 +26,7 @@ export const RedirectIfAuth = ({ children, fallback }: RedirectIfAuthProps) => {
   return (
     <>
       {fallback ?? (
-        <div data-route-intent={`redirect:${routePaths.appHome}`}>
-          OPEN_DECISION_ROUTE_GUARD_REDIRECT_IF_AUTH
-        </div>
+        <div data-route-intent={`redirect:${routePaths.appHome}`}>ROUTE_GUARD_REDIRECT_IF_AUTH</div>
       )}
     </>
   );
