@@ -26,9 +26,7 @@ export const RequireAuth = ({ children, fallback }: RequireAuthProps) => {
   return (
     <>
       {fallback ?? (
-        <div data-route-intent={`redirect:${routePaths.signIn}`}>
-          OPEN_DECISION_ROUTE_GUARD_REQUIRE_AUTH
-        </div>
+        <div data-route-intent={`redirect:${routePaths.signIn}`}>ROUTE_GUARD_REQUIRE_AUTH</div>
       )}
     </>
   );

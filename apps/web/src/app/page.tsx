@@ -1,18 +1,23 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
 import { resolveRootRouteTarget } from "../lib/routing/route-policy";
 import { useSession } from "../providers/session-provider";
 
 export default function RootRoutePage() {
   const { session } = useSession();
+  const router = useRouter();
   const targetPath = resolveRootRouteTarget(session);
+
+  useEffect(() => {
+    router.replace(targetPath);
+  }, [router, targetPath]);
 
   return (
     <main>
-      <h1>Root Route Strategy Shell</h1>
-      <p data-route-intent={`redirect:${targetPath}`}>
-        OPEN_DECISION_ROOT_REDIRECT_TARGET:{targetPath}
-      </p>
+      <p data-route-intent={`redirect:${targetPath}`}>Redirecting...</p>
     </main>
   );
 }

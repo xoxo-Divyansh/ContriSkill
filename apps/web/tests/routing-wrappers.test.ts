@@ -47,7 +47,7 @@ describe("routing wrappers", () => {
       createElement(RequireAuth, null, createElement("p", null, "allowed"))
     );
 
-    expect(html).toContain("OPEN_DECISION_ROUTE_GUARD_REQUIRE_AUTH");
+    expect(html).toContain("ROUTE_GUARD_REQUIRE_AUTH");
     expect(html).toContain("redirect:/sign-in");
   });
 
@@ -66,7 +66,7 @@ describe("routing wrappers", () => {
       createElement(RedirectIfAuth, null, createElement("p", null, "sign-in-form"))
     );
 
-    expect(html).toContain("OPEN_DECISION_ROUTE_GUARD_REDIRECT_IF_AUTH");
+    expect(html).toContain("ROUTE_GUARD_REDIRECT_IF_AUTH");
     expect(html).toContain("redirect:/app");
   });
 
@@ -80,7 +80,7 @@ describe("routing wrappers", () => {
       )
     );
 
-    expect(html).toContain("OPEN_DECISION_ROUTE_GUARD_REQUIRE_ROLE:moderator");
+    expect(html).toContain("ROUTE_GUARD_REQUIRE_ROLE:moderator");
   });
 
   it("resolves root target path by session auth state", () => {
