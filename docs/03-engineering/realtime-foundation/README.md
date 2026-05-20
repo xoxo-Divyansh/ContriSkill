@@ -45,6 +45,14 @@ This pack defines the realtime collaboration foundation for ContriSkill before a
 5. Add observability and abuse safeguards.
 6. Load/stress validation and rollout gates.
 
+## Current Phase 3 Diagnostics Note
+
+- A development diagnostics endpoint is now part of the realtime observability surface:
+  - `GET /api/v1/internal/realtime/stats`
+- The endpoint is explicitly non-production and intended for runtime debugging/triage only.
+- It exposes aggregate counters and runtime health metadata only (no sensitive payload data).
+- See `realtime-observability.md` for counter definitions and operator usage guidance.
+
 ## OPEN_DECISION
 
 1. First production transport: WebSocket vs SSE fallback hybrid.
