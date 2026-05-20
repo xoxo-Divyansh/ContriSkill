@@ -28,7 +28,11 @@ export const realtimeEventNames = {
   projectionUpdated: "collaboration.projection.updated.v1",
   projectionAcknowledged: "collaboration.projection.acknowledged.v1",
   projectionRejected: "collaboration.projection.rejected.v1",
-  projectionConflict: "collaboration.projection.conflict.v1"
+  projectionConflict: "collaboration.projection.conflict.v1",
+  workspaceSessionSnapshot: "collaboration.workspace_session.snapshot.v1",
+  workspaceSessionJoined: "collaboration.workspace_session.joined.v1",
+  workspaceSessionLeft: "collaboration.workspace_session.left.v1",
+  workspaceSessionUpdated: "collaboration.workspace_session.updated.v1"
 } as const;
 
 export const realtimeServerEventNames = [
@@ -56,7 +60,11 @@ export const realtimeServerEventNames = [
   realtimeEventNames.projectionUpdated,
   realtimeEventNames.projectionAcknowledged,
   realtimeEventNames.projectionRejected,
-  realtimeEventNames.projectionConflict
+  realtimeEventNames.projectionConflict,
+  realtimeEventNames.workspaceSessionSnapshot,
+  realtimeEventNames.workspaceSessionJoined,
+  realtimeEventNames.workspaceSessionLeft,
+  realtimeEventNames.workspaceSessionUpdated
 ] as const;
 
 export const realtimeClientEventNames = [
@@ -224,4 +232,42 @@ export type ProjectionRealtimeLifecyclePayload = {
   code?: string;
   message?: string;
   appliedProjectionVersion?: number;
+};
+
+export type WorkspaceSessionParticipantPayload = {
+  workspaceSessionId: string;
+  workspaceId: string;
+  targetId: string;
+  actorId: string;
+  clientId: string;
+  connectionIds: string[];
+  sessionState: "active" | "reconnecting" | "stale" | "left";
+  joinedAt: string;
+  lastSeenAt: string;
+  capabilities: string[];
+  metadata?: {
+    displayName?: string;
+  };
+};
+
+export type WorkspaceSessionSnapshotPayload = {
+  workspaceId: string;
+  targetId: string;
+  participants: WorkspaceSessionParticipantPayload[];
+  generatedAt: string;
+};
+
+export type WorkspaceSessionLifecyclePayload = {
+  workspaceId: string;
+  targetId: string;
+  session: WorkspaceSessionParticipantPayload;
+};
+
+export type WorkspaceSessionLeftPayload = {
+  workspaceId: string;
+  targetId: string;
+  workspaceSessionId: string;
+  actorId: string;
+  sessionState: "left" | "stale";
+  leftAt: string;
 };

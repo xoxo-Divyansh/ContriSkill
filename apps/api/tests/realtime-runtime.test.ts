@@ -168,6 +168,10 @@ describe("realtime runtime foundation", () => {
       return event.eventName === realtimeEventNames.contributionPresenceSnapshot;
     });
     expect(snapshot).toBeDefined();
+    const workspaceSnapshot = transport.latestClient?.sent.find((event) => {
+      return event.eventName === realtimeEventNames.workspaceSessionSnapshot;
+    });
+    expect(workspaceSnapshot).toBeDefined();
 
     const reconnectToken = (connectedEvent?.payload as { reconnectToken: string }).reconnectToken;
     transport.emitClose();

@@ -16,6 +16,7 @@ export const authCapabilities = [
   "mutation:submit",
   "draft:sync",
   "projection:sync",
+  "workspace:session:join",
   "moderation:case:read",
   "moderation:case:write",
   "admin:roles:manage"
@@ -38,7 +39,8 @@ const roleCapabilities: Record<AuthRole, readonly AuthCapability[]> = {
     "contribution:application:accept",
     "mutation:submit",
     "draft:sync",
-    "projection:sync"
+    "projection:sync",
+    "workspace:session:join"
   ],
   participant: [
     "auth:refresh",
@@ -53,7 +55,8 @@ const roleCapabilities: Record<AuthRole, readonly AuthCapability[]> = {
     "contribution:application:accept",
     "mutation:submit",
     "draft:sync",
-    "projection:sync"
+    "projection:sync",
+    "workspace:session:join"
   ],
   owner: [
     "auth:refresh",
@@ -68,7 +71,8 @@ const roleCapabilities: Record<AuthRole, readonly AuthCapability[]> = {
     "contribution:application:accept",
     "mutation:submit",
     "draft:sync",
-    "projection:sync"
+    "projection:sync",
+    "workspace:session:join"
   ],
   moderator: [
     "auth:refresh",
@@ -84,6 +88,7 @@ const roleCapabilities: Record<AuthRole, readonly AuthCapability[]> = {
     "mutation:submit",
     "draft:sync",
     "projection:sync",
+    "workspace:session:join",
     "moderation:case:read",
     "moderation:case:write"
   ],
@@ -101,6 +106,7 @@ const roleCapabilities: Record<AuthRole, readonly AuthCapability[]> = {
     "mutation:submit",
     "draft:sync",
     "projection:sync",
+    "workspace:session:join",
     "moderation:case:read",
     "moderation:case:write",
     "admin:roles:manage"

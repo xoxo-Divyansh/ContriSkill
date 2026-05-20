@@ -14,6 +14,7 @@ import {
   contributionDetailSubscription,
   contributionProjectionSubscription
 } from "../../../../../lib/realtime/subscriptions";
+import { useContributionWorkspaceSessions } from "../../../../../lib/realtime/workspace-sessions";
 import { useApiClient } from "../../../../../providers/api-client-provider";
 import {
   useRealtimeEvent,
@@ -41,6 +42,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
   const { contributionClient, draftClient, projectionClient } = useApiClient();
   const { session } = useSession();
   const presence = useContributionPresence(params.id);
+  const workspaceSessions = useContributionWorkspaceSessions(params.id);
   const draftStore = useMemo(() => createDraftSyncStore(), []);
   const projectionStore = useMemo(() => createProjectionSyncStore(), []);
   const draftId = useMemo(() => `draft:contribution:${params.id}`, [params.id]);
@@ -359,6 +361,22 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
             <Text variant="caption" tone="muted">
               Active collaborators: {presence.activeCount}
             </Text>
+            <Text variant="caption" tone="muted">
+              Workspace sessions: {workspaceSessions.activeCount}
+            </Text>
+            {workspaceSessions.workspaceId ? (
+              <Text variant="caption" tone="muted">
+                Workspace: {workspaceSessions.workspaceId}
+              </Text>
+            ) : null}
+            {workspaceSessions.participants.length > 0 ? (
+              <Text variant="caption" tone="muted">
+                Participants:{" "}
+                {workspaceSessions.participants
+                  .map((participant) => `${participant.actorId}(${participant.sessionState})`)
+                  .join(", ")}
+              </Text>
+            ) : null}
           </Stack>
         ) : (
           <Stack gap="xs">

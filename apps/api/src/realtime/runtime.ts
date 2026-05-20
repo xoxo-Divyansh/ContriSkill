@@ -3,6 +3,10 @@ import { randomUUID } from "node:crypto";
 import {
   type ContributionPresenceDeltaPayload,
   type ContributionPresenceSnapshotPayload,
+  type WorkspaceSessionLeftPayload,
+  type WorkspaceSessionLifecyclePayload,
+  type WorkspaceSessionSnapshotPayload,
+  type WorkspaceSessionCapability,
   realtimeClientEventNames,
   realtimeEventNames,
   realtimeEventVersion,
@@ -15,6 +19,7 @@ import {
   type RealtimeSubscriptionTopic
 } from "@contriskill/contracts";
 
+import { canActor } from "../modules/auth/authorization";
 import type { SessionResolver } from "../modules/auth/session";
 import { log } from "../observability/logger";
 
@@ -28,11 +33,13 @@ import { contributionListTopic, extractContributionRoomId } from "./topic-helper
 import type { RealtimeClientHandle, RealtimeTransportLifecycle } from "./transport";
 import type { RealtimeConnectionContext, RealtimeTransportIncomingEnvelope } from "./types";
 import { validateIncomingEnvelope } from "./validation";
+import { RealtimeWorkspaceSessionRegistry } from "./workspace-session-registry";
 
 const realtimePath = "/api/v1/realtime";
 const heartbeatIntervalMs = 15000;
 const heartbeatStaleThresholdMs = 45000;
 const reconnectTokenWindowMs = 60000;
+const workspaceSessionStaleThresholdMs = 90000;
 const incomingEventStaleThresholdMs = 5 * 60 * 1000;
 const incomingEventFutureThresholdMs = 60 * 1000;
 
@@ -93,6 +100,7 @@ export const createRealtimeRuntime = ({
 }: RealtimeRuntimeDependencies): RealtimeRuntime => {
   const registry = new RealtimeConnectionRegistry();
   const presenceRegistry = new RealtimePresenceRegistry();
+  const workspaceSessionRegistry = new RealtimeWorkspaceSessionRegistry();
   const clients = new Map<string, RealtimeClientHandle>();
   const disconnectedSubscriptionSnapshot = new Map<
     string,
@@ -200,6 +208,87 @@ export const createRealtimeRuntime = ({
     );
   };
 
+  const getActorWorkspaceCapabilities = (
+    context: RealtimeConnectionContext
+  ): WorkspaceSessionCapability[] => {
+    const capabilities: WorkspaceSessionCapability[] = [];
+    if (canActor(context.actor, "workspace:session:join")) {
+      capabilities.push("workspace:session:join");
+    }
+    if (canActor(context.actor, "draft:sync")) {
+      capabilities.push("draft:sync");
+    }
+    if (canActor(context.actor, "projection:sync")) {
+      capabilities.push("projection:sync");
+    }
+    return capabilities;
+  };
+
+  const broadcastWorkspaceSessionSnapshot = (
+    client: RealtimeClientHandle,
+    workspaceId: string,
+    targetId: string
+  ): void => {
+    client.send(
+      createEvent<WorkspaceSessionSnapshotPayload>(
+        realtimeEventNames.workspaceSessionSnapshot,
+        { type: "contribution", id: targetId },
+        {
+          workspaceId,
+          targetId,
+          participants: workspaceSessionRegistry.getParticipantsByWorkspace(workspaceId),
+          generatedAt: new Date().toISOString()
+        },
+        { connectionId: client.id }
+      )
+    );
+  };
+
+  const broadcastWorkspaceSessionJoined = (
+    workspaceId: string,
+    targetId: string,
+    session: WorkspaceSessionLifecyclePayload["session"]
+  ): void => {
+    broadcast(
+      `contribution:${targetId}`,
+      createEvent<WorkspaceSessionLifecyclePayload>(
+        realtimeEventNames.workspaceSessionJoined,
+        { type: "contribution", id: targetId },
+        { workspaceId, targetId, session }
+      )
+    );
+  };
+
+  const broadcastWorkspaceSessionUpdated = (
+    workspaceId: string,
+    targetId: string,
+    session: WorkspaceSessionLifecyclePayload["session"]
+  ): void => {
+    broadcast(
+      `contribution:${targetId}`,
+      createEvent<WorkspaceSessionLifecyclePayload>(
+        realtimeEventNames.workspaceSessionUpdated,
+        { type: "contribution", id: targetId },
+        { workspaceId, targetId, session }
+      )
+    );
+  };
+
+  const broadcastWorkspaceSessionLeft = (
+    workspaceId: string,
+    targetId: string,
+    payload: WorkspaceSessionLeftPayload
+  ): void => {
+    broadcast(
+      `contribution:${targetId}`,
+      createEvent<WorkspaceSessionLeftPayload>(
+        realtimeEventNames.workspaceSessionLeft,
+        { type: "contribution", id: targetId },
+        payload
+      )
+    );
+  };
+
   const disconnect = (client: RealtimeClientHandle, reason: string): void => {
     const context = registry.get(client.id);
     if (context?.actor.userId) {
@@ -217,6 +306,17 @@ export const createRealtimeRuntime = ({
         }
       }
       presenceRegistry.removeConnection(client.id, context.actor.userId);
+      const staleSessions = workspaceSessionRegistry.removeConnection(client.id);
+      for (const staleSession of staleSessions) {
+        broadcastWorkspaceSessionLeft(staleSession.workspaceId, staleSession.targetId, {
+          workspaceId: staleSession.workspaceId,
+          targetId: staleSession.targetId,
+          workspaceSessionId: staleSession.session.workspaceSessionId,
+          actorId: staleSession.session.actorId,
+          sessionState: "stale",
+          leftAt: new Date().toISOString()
+        });
+      }
     }
 
     if (context?.actor.userId) {
@@ -290,6 +390,25 @@ export const createRealtimeRuntime = ({
       return;
     }
 
+    const scopedRoomId = extractContributionRoomId(payload.subscription.topic);
+    if (scopedRoomId && !canActor(context.actor, "workspace:session:join")) {
+      diagnostics.increment("rejectedEvents");
+      log("warn", "Realtime workspace session join rejected due to capability.", {
+        connectionId: client.id,
+        actorUserId: context.actor.userId,
+        requiredCapability: "workspace:session:join"
+      });
+      client.send(
+        createEvent(
+          realtimeEventNames.serverSubscriptionRejected,
+          payload.subscription.scope,
+          { subscription: payload.subscription, reason: "missing_workspace_session_capability" },
+          { connectionId: client.id }
+        )
+      );
+      return;
+    }
+
     const subscription = registry.subscribe(
       client.id,
       payload.subscription.scope,
@@ -315,6 +434,21 @@ export const createRealtimeRuntime = ({
         broadcastPresenceSnapshot(client, roomId, joinResult.activeUserIds);
         if (joinResult.joined) {
           broadcastPresenceJoined(roomId, context.actor.userId, joinResult.activeUserIds);
+        }
+        const workspaceId = `workspace:${roomId}`;
+        const workspaceJoin = workspaceSessionRegistry.joinSession({
+          workspaceId,
+          targetId: roomId,
+          actorId: context.actor.userId,
+          clientId: "realtime-client",
+          connectionId: client.id,
+          capabilities: getActorWorkspaceCapabilities(context)
+        });
+        broadcastWorkspaceSessionSnapshot(client, workspaceId, roomId);
+        if (workspaceJoin.joined) {
+          broadcastWorkspaceSessionJoined(workspaceId, roomId, workspaceJoin.session);
+        } else if (workspaceJoin.updated) {
+          broadcastWorkspaceSessionUpdated(workspaceId, roomId, workspaceJoin.session);
         }
       }
     }
@@ -344,6 +478,24 @@ export const createRealtimeRuntime = ({
         if (leaveResult.left) {
           broadcastPresenceLeft(roomId, context.actor.userId, leaveResult.activeUserIds);
         }
+        const workspaceId = `workspace:${roomId}`;
+        const workspaceLeave = workspaceSessionRegistry.leaveSession({
+          workspaceId,
+          actorId: context.actor.userId,
+          connectionId: client.id
+        });
+        if (workspaceLeave.left && workspaceLeave.session) {
+          broadcastWorkspaceSessionLeft(workspaceId, roomId, {
+            workspaceId,
+            targetId: roomId,
+            workspaceSessionId: workspaceLeave.session.workspaceSessionId,
+            actorId: workspaceLeave.session.actorId,
+            sessionState: "left",
+            leftAt: new Date().toISOString()
+          });
+        } else if (workspaceLeave.session) {
+          broadcastWorkspaceSessionUpdated(workspaceId, roomId, workspaceLeave.session);
+        }
       }
     }
 
@@ -363,6 +515,7 @@ export const createRealtimeRuntime = ({
   ): void => {
     client.markAlive();
     registry.updateHeartbeat(client.id, payload.heartbeatAt);
+    workspaceSessionRegistry.touchConnection(client.id);
   };
 
   const handleMessage = (
@@ -495,6 +648,20 @@ export const createRealtimeRuntime = ({
   const sendHeartbeat = (): void => {
     const now = Date.now();
     cleanupDisconnectedSnapshots();
+    const staleWorkspaceSessions = workspaceSessionRegistry.cleanupStaleSessions(
+      workspaceSessionStaleThresholdMs
+    );
+    for (const staleSession of staleWorkspaceSessions) {
+      diagnostics.increment("orphanedPresenceCleanups");
+      broadcastWorkspaceSessionLeft(staleSession.workspaceId, staleSession.targetId, {
+        workspaceId: staleSession.workspaceId,
+        targetId: staleSession.targetId,
+        workspaceSessionId: staleSession.session.workspaceSessionId,
+        actorId: staleSession.session.actorId,
+        sessionState: "stale",
+        leftAt: new Date().toISOString()
+      });
+    }
     for (const context of registry.getAllConnections()) {
       const client = clients.get(context.connectionId);
       if (!client) {
@@ -749,6 +916,17 @@ export const createRealtimeRuntime = ({
             }
           }
           presenceRegistry.removeConnection(context.connectionId, context.actor.userId);
+          const staleSessions = workspaceSessionRegistry.removeConnection(context.connectionId);
+          for (const staleSession of staleSessions) {
+            broadcastWorkspaceSessionLeft(staleSession.workspaceId, staleSession.targetId, {
+              workspaceId: staleSession.workspaceId,
+              targetId: staleSession.targetId,
+              workspaceSessionId: staleSession.session.workspaceSessionId,
+              actorId: staleSession.session.actorId,
+              sessionState: "stale",
+              leftAt: new Date().toISOString()
+            });
+          }
         }
         registry.unregister(context.connectionId);
       }

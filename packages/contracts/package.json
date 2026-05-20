@@ -10,7 +10,8 @@
     "./realtime": "./src/realtime.ts",
     "./mutation": "./src/mutation.ts",
     "./draft": "./src/draft.ts",
-    "./projection": "./src/projection.ts"
+    "./projection": "./src/projection.ts",
+    "./workspace-session": "./src/workspace-session.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

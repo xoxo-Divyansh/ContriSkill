@@ -4,7 +4,8 @@ import {
   actorSystemSubscription,
   contributionDetailSubscription,
   contributionListSubscription,
-  contributionPresenceSubscription
+  contributionPresenceSubscription,
+  contributionWorkspaceSessionSubscription
 } from "../src/lib/realtime/subscriptions";
 
 describe("realtime subscription helpers", () => {
@@ -16,5 +17,6 @@ describe("realtime subscription helpers", () => {
     expect(contributionListSubscription().topic).toBe("contribution:list");
     expect(contributionDetailSubscription("post_1").topic).toBe("contribution:post_1");
     expect(contributionPresenceSubscription("post_1").topic).toBe("contribution:post_1");
+    expect(contributionWorkspaceSessionSubscription("post_1").topic).toBe("contribution:post_1");
   });
 });
