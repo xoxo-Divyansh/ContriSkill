@@ -8,6 +8,7 @@ import type { SessionSnapshot } from "../types/session";
 import type { ApiClientProviderValue } from "./api-client-provider";
 import { ApiClientProvider } from "./api-client-provider";
 import { EnvProvider } from "./env-provider";
+import { RealtimeProvider } from "./realtime-provider";
 import { SessionBootstrap } from "./session-bootstrap";
 import { SessionProvider } from "./session-provider";
 
@@ -27,8 +28,10 @@ export const AppProviders = ({ children, env, session, apiClients }: AppProvider
     <EnvProvider {...envProviderProps}>
       <SessionProvider {...sessionProviderProps}>
         <ApiClientProvider {...apiClientProviderProps}>
-          <SessionBootstrap />
-          {children}
+          <RealtimeProvider>
+            <SessionBootstrap />
+            {children}
+          </RealtimeProvider>
         </ApiClientProvider>
       </SessionProvider>
     </EnvProvider>

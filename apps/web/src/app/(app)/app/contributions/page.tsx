@@ -2,10 +2,12 @@
 
 import type { ContributionDifficulty, ContributionType } from "@contriskill/domain";
 import { Button, Input, Label, Stack, Text } from "@contriskill/ui";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ApiClientError } from "../../../../lib/api/types";
+import { contributionListSubscription } from "../../../../lib/realtime/subscriptions";
 import { useApiClient } from "../../../../providers/api-client-provider";
+import { useRealtimeEvent, useRealtimeSubscription } from "../../../../providers/realtime-provider";
 import { useSession } from "../../../../providers/session-provider";
 import { AppShell } from "../_components/app-shell";
 
@@ -52,25 +54,48 @@ export default function ContributionsPage() {
   const [typeFilter, setTypeFilter] = useState<string>("");
   const [difficultyFilter, setDifficultyFilter] = useState<string>("");
 
-  const loadContributions = async (cursor?: string) => {
-    const result = await contributionClient.listPosts(
-      {
-        limit: 10,
-        ...(cursor ? { cursor } : {}),
-        ...(stateFilter ? { state: stateFilter as never } : {}),
-        ...(typeFilter ? { type: typeFilter as never } : {}),
-        ...(difficultyFilter ? { difficulty: difficultyFilter as never } : {})
-      },
-      session.accessToken
-    );
+  const loadContributions = useCallback(
+    async (cursor?: string) => {
+      const result = await contributionClient.listPosts(
+        {
+          limit: 10,
+          ...(cursor ? { cursor } : {}),
+          ...(stateFilter ? { state: stateFilter as never } : {}),
+          ...(typeFilter ? { type: typeFilter as never } : {}),
+          ...(difficultyFilter ? { difficulty: difficultyFilter as never } : {})
+        },
+        session.accessToken
+      );
 
-    if (cursor) {
-      setPosts((current: typeof posts) => [...current, ...result.items]);
-    } else {
-      setPosts(result.items);
-    }
-    setNextCursor(result.page.nextCursor);
-  };
+      if (cursor) {
+        setPosts((current: typeof posts) => [...current, ...result.items]);
+      } else {
+        setPosts(result.items);
+      }
+      setNextCursor(result.page.nextCursor);
+    },
+    [contributionClient, difficultyFilter, session.accessToken, stateFilter, typeFilter]
+  );
+
+  useRealtimeSubscription(contributionListSubscription());
+  useRealtimeEvent(
+    useCallback(
+      (event) => {
+        if (event.topicHint !== "contribution:list") {
+          return;
+        }
+        if (
+          event.eventName !== "contribution.post.created.v1" &&
+          event.eventName !== "contribution.post.updated.v1" &&
+          event.eventName !== "contribution.post.state_changed.v1"
+        ) {
+          return;
+        }
+        void loadContributions();
+      },
+      [loadContributions]
+    )
+  );
 
   useEffect(() => {
     const run = async () => {
@@ -85,7 +110,7 @@ export default function ContributionsPage() {
       }
     };
     void run();
-  }, [session.accessToken, stateFilter, typeFilter, difficultyFilter]);
+  }, [loadContributions, session.accessToken, stateFilter, typeFilter, difficultyFilter]);
 
   const canSubmit = useMemo(() => {
     return Boolean(title && description && creditOffer);

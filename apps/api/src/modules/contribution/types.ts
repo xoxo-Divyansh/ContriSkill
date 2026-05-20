@@ -14,7 +14,12 @@ import type { RequestActor } from "../auth/types";
 export type ContributionServiceDependencies = {
   repository: ContributionRepository;
   eventRepository: ContributionEventRepository;
+  liveEventPublisher?: ContributionLiveEventPublisher;
   unitOfWork?: ContributionUnitOfWork;
+};
+
+export type ContributionLiveEventPublisher = {
+  publishContributionEvents: (events: ContributionDomainEvent[]) => Promise<void>;
 };
 
 export type ContributionUnitOfWork = {
