@@ -73,4 +73,93 @@ describe("realtime client foundation", () => {
     ).toBe(true);
     expect(states.includes("connected")).toBe(true);
   });
+
+  it("ignores duplicate, stale, and out-of-order events by topic ordering", () => {
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+    const receivedEventIds: string[] = [];
+    const errors: string[] = [];
+    const client = createRealtimeClient({
+      realtimeUrl: "ws://localhost:4000/api/v1/realtime",
+      getAccessToken: () => "token_123",
+      onEvent: (event) => {
+        receivedEventIds.push(event.eventId);
+      },
+      onError: (message) => errors.push(message)
+    });
+
+    client.connect();
+    const socket = FakeWebSocket.instances[0];
+    socket?.emitOpen();
+
+    const baseTime = Date.now();
+    socket?.emitMessage({
+      eventId: "evt_1",
+      eventName: realtimeEventNames.contributionUpdated,
+      version: realtimeEventVersion,
+      occurredAt: new Date(baseTime).toISOString(),
+      scope: { type: "contribution", id: "post_1" },
+      sequence: 2,
+      payload: { postId: "post_1" }
+    });
+    socket?.emitMessage({
+      eventId: "evt_1",
+      eventName: realtimeEventNames.contributionUpdated,
+      version: realtimeEventVersion,
+      occurredAt: new Date(baseTime).toISOString(),
+      scope: { type: "contribution", id: "post_1" },
+      sequence: 2,
+      payload: { postId: "post_1" }
+    });
+    socket?.emitMessage({
+      eventId: "evt_2",
+      eventName: realtimeEventNames.contributionUpdated,
+      version: realtimeEventVersion,
+      occurredAt: new Date(baseTime + 10).toISOString(),
+      scope: { type: "contribution", id: "post_1" },
+      sequence: 1,
+      payload: { postId: "post_1" }
+    });
+    socket?.emitMessage({
+      eventId: "evt_3",
+      eventName: realtimeEventNames.contributionUpdated,
+      version: realtimeEventVersion,
+      occurredAt: new Date(baseTime - 11 * 60 * 1000).toISOString(),
+      scope: { type: "contribution", id: "post_1" },
+      payload: { postId: "post_1" }
+    });
+
+    expect(receivedEventIds).toEqual(["evt_1"]);
+    expect(errors.some((message) => message.includes("duplicate event ignored"))).toBe(true);
+    expect(errors.some((message) => message.includes("out-of-order event ignored"))).toBe(true);
+    expect(errors.some((message) => message.includes("stale event ignored"))).toBe(true);
+  });
+
+  it("reuses reconnect token on reconnect for synchronization reconciliation", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+    const client = createRealtimeClient({
+      realtimeUrl: "ws://localhost:4000/api/v1/realtime",
+      getAccessToken: () => "token_123"
+    });
+
+    client.connect();
+    const firstSocket = FakeWebSocket.instances[0];
+    firstSocket?.emitOpen();
+    firstSocket?.emitMessage({
+      eventId: "evt_connected",
+      eventName: realtimeEventNames.serverConnected,
+      version: realtimeEventVersion,
+      occurredAt: new Date().toISOString(),
+      scope: { type: "actor", id: "usr_1" },
+      payload: { reconnectToken: "rct_123", heartbeatIntervalMs: 15000 }
+    });
+    firstSocket?.close();
+    vi.advanceTimersByTime(2500);
+
+    const secondSocket = FakeWebSocket.instances[1];
+    expect(secondSocket?.url).toContain("reconnectToken=rct_123");
+    vi.useRealTimers();
+  });
 });
