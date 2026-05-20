@@ -4,6 +4,7 @@ import React, { createContext, useContext, useMemo, type ReactNode } from "react
 
 import { createAuthClient, type AuthClient } from "../lib/api/auth-client";
 import { createContributionClient, type ContributionClient } from "../lib/api/contribution-client";
+import { createDraftClient, type DraftClient } from "../lib/api/draft-client";
 import { createHttpClient } from "../lib/api/http-client";
 import type { HttpClient } from "../lib/api/types";
 import { createUserClient, type UserClient } from "../lib/api/user-client";
@@ -14,6 +15,7 @@ export type ApiClientProviderValue = {
   httpClient: HttpClient;
   authClient: AuthClient;
   contributionClient: ContributionClient;
+  draftClient: DraftClient;
   userClient: UserClient;
 };
 
@@ -39,6 +41,7 @@ export const ApiClientProvider = ({ children, value }: ApiClientProviderProps) =
       httpClient,
       authClient: createAuthClient(httpClient),
       contributionClient: createContributionClient(httpClient),
+      draftClient: createDraftClient(httpClient),
       userClient: createUserClient(httpClient)
     };
   }, [env.apiBaseUrl]);

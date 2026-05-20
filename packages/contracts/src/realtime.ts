@@ -18,7 +18,12 @@ export const realtimeEventNames = {
   contributionPresenceLeft: "contribution.presence.left.v1",
   mutationAcknowledged: "collaboration.mutation.acknowledged.v1",
   mutationRejected: "collaboration.mutation.rejected.v1",
-  mutationConflict: "collaboration.mutation.conflict.v1"
+  mutationConflict: "collaboration.mutation.conflict.v1",
+  draftSnapshot: "collaboration.draft.snapshot.v1",
+  draftPatched: "collaboration.draft.patched.v1",
+  draftAcknowledged: "collaboration.draft.acknowledged.v1",
+  draftRejected: "collaboration.draft.rejected.v1",
+  draftConflict: "collaboration.draft.conflict.v1"
 } as const;
 
 export const realtimeServerEventNames = [
@@ -36,7 +41,12 @@ export const realtimeServerEventNames = [
   realtimeEventNames.contributionPresenceLeft,
   realtimeEventNames.mutationAcknowledged,
   realtimeEventNames.mutationRejected,
-  realtimeEventNames.mutationConflict
+  realtimeEventNames.mutationConflict,
+  realtimeEventNames.draftSnapshot,
+  realtimeEventNames.draftPatched,
+  realtimeEventNames.draftAcknowledged,
+  realtimeEventNames.draftRejected,
+  realtimeEventNames.draftConflict
 ] as const;
 
 export const realtimeClientEventNames = [
@@ -145,4 +155,32 @@ export type MutationLifecycleRealtimePayload = {
   code?: string;
   message?: string;
   acknowledgedAt?: string;
+};
+
+export type DraftRealtimeSnapshotPayload = {
+  draftId: string;
+  targetType: string;
+  targetId: string;
+  draftVersion: number;
+  fields: Record<string, string>;
+};
+
+export type DraftRealtimePatchPayload = {
+  patchId: string;
+  draftId: string;
+  targetType: string;
+  targetId: string;
+  draftVersion: number;
+  patch: Record<string, string | null>;
+};
+
+export type DraftRealtimeLifecyclePayload = {
+  patchId: string;
+  draftId: string;
+  targetType: string;
+  targetId: string;
+  status: "acknowledged" | "rejected" | "conflict";
+  code?: string;
+  message?: string;
+  appliedDraftVersion?: number;
 };
