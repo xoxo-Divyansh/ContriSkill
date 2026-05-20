@@ -6,6 +6,7 @@ import { createAuthClient, type AuthClient } from "../lib/api/auth-client";
 import { createContributionClient, type ContributionClient } from "../lib/api/contribution-client";
 import { createDraftClient, type DraftClient } from "../lib/api/draft-client";
 import { createHttpClient } from "../lib/api/http-client";
+import { createProjectionClient, type ProjectionClient } from "../lib/api/projection-client";
 import type { HttpClient } from "../lib/api/types";
 import { createUserClient, type UserClient } from "../lib/api/user-client";
 
@@ -16,6 +17,7 @@ export type ApiClientProviderValue = {
   authClient: AuthClient;
   contributionClient: ContributionClient;
   draftClient: DraftClient;
+  projectionClient: ProjectionClient;
   userClient: UserClient;
 };
 
@@ -42,6 +44,7 @@ export const ApiClientProvider = ({ children, value }: ApiClientProviderProps) =
       authClient: createAuthClient(httpClient),
       contributionClient: createContributionClient(httpClient),
       draftClient: createDraftClient(httpClient),
+      projectionClient: createProjectionClient(httpClient),
       userClient: createUserClient(httpClient)
     };
   }, [env.apiBaseUrl]);

@@ -5,6 +5,7 @@ import { createContributionClient } from "./contribution-client";
 import { createDraftClient } from "./draft-client";
 import { createHttpClient } from "./http-client";
 import { createMutationClient } from "./mutation-client";
+import { createProjectionClient } from "./projection-client";
 import { createUserClient } from "./user-client";
 
 export * from "./auth-client";
@@ -13,6 +14,7 @@ export * from "./draft-client";
 export * from "./error-normalizer";
 export * from "./http-client";
 export * from "./mutation-client";
+export * from "./projection-client";
 export * from "./types";
 export * from "./user-client";
 
@@ -29,4 +31,5 @@ export const authClient = createAuthClient(apiHttpClient);
 export const contributionClient = createContributionClient(apiHttpClient);
 export const draftClient = createDraftClient(apiHttpClient);
 export const mutationClient = createMutationClient(apiHttpClient);
+export const projectionClient = createProjectionClient(apiHttpClient);
 export const userClient = createUserClient(apiHttpClient);

@@ -13,6 +13,7 @@ import type { AuthSessionRuntime } from "./modules/auth/session";
 import { createContributionRouter } from "./modules/contribution/routes";
 import { createDraftSyncRouter } from "./modules/draft/routes";
 import { createMutationRouter } from "./modules/mutation/routes";
+import { createProjectionSyncRouter } from "./modules/projection/routes";
 import { log } from "./observability/logger";
 import { setRealtimeBroadcaster } from "./realtime/broadcaster";
 import { createRealtimeRuntime } from "./realtime/runtime";
@@ -103,6 +104,7 @@ export const createServerRuntime = (
     })
   );
   app.use("/api/v1", createDraftSyncRouter());
+  app.use("/api/v1", createProjectionSyncRouter());
   app.use("/api/v1", createMutationRouter());
 
   const realtimeRuntime =

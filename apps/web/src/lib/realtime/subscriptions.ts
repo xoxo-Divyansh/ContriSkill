@@ -28,3 +28,9 @@ export const contributionPresenceSubscription = (contributionId: string): Realti
 export const contributionDraftSubscription = (contributionId: string): RealtimeSubscription => {
   return contributionDetailSubscription(contributionId);
 };
+
+export const contributionProjectionSubscription = (
+  contributionId: string
+): RealtimeSubscription => {
+  return contributionDetailSubscription(contributionId);
+};

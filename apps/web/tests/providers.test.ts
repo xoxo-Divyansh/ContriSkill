@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type { AuthClient } from "../src/lib/api/auth-client";
 import type { ContributionClient } from "../src/lib/api/contribution-client";
 import type { DraftClient } from "../src/lib/api/draft-client";
+import type { ProjectionClient } from "../src/lib/api/projection-client";
 import type { HttpClient } from "../src/lib/api/types";
 import type { UserClient } from "../src/lib/api/user-client";
 import { useApiClient, type ApiClientProviderValue } from "../src/providers/api-client-provider";
@@ -185,12 +186,43 @@ const createStubDraftClient = (): DraftClient => {
   };
 };
 
+const createStubProjectionClient = (): ProjectionClient => {
+  return {
+    getSnapshot: async () =>
+      Promise.resolve({
+        version: 1,
+        projectionId: "prj_1",
+        workspaceId: "wrk_1",
+        targetType: "contribution.workspace",
+        targetId: "post_1",
+        actorId: "usr_placeholder",
+        clientId: "cli_stub",
+        projectionVersion: 0,
+        fields: {},
+        timestamp: new Date().toISOString()
+      }),
+    syncUpdate: async () =>
+      Promise.resolve({
+        version: 1,
+        status: "acknowledged",
+        updateId: "upd_1",
+        projectionId: "prj_1",
+        workspaceId: "wrk_1",
+        targetType: "contribution.workspace",
+        targetId: "post_1",
+        appliedProjectionVersion: 1,
+        acknowledgedAt: new Date().toISOString()
+      })
+  };
+};
+
 const createStubApiClients = (): ApiClientProviderValue => {
   return {
     httpClient: createStubHttpClient(),
     authClient: createStubAuthClient(),
     contributionClient: createStubContributionClient(),
     draftClient: createStubDraftClient(),
+    projectionClient: createStubProjectionClient(),
     userClient: createStubUserClient()
   };
 };

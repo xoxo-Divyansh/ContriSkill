@@ -23,7 +23,12 @@ export const realtimeEventNames = {
   draftPatched: "collaboration.draft.patched.v1",
   draftAcknowledged: "collaboration.draft.acknowledged.v1",
   draftRejected: "collaboration.draft.rejected.v1",
-  draftConflict: "collaboration.draft.conflict.v1"
+  draftConflict: "collaboration.draft.conflict.v1",
+  projectionSnapshot: "collaboration.projection.snapshot.v1",
+  projectionUpdated: "collaboration.projection.updated.v1",
+  projectionAcknowledged: "collaboration.projection.acknowledged.v1",
+  projectionRejected: "collaboration.projection.rejected.v1",
+  projectionConflict: "collaboration.projection.conflict.v1"
 } as const;
 
 export const realtimeServerEventNames = [
@@ -46,7 +51,12 @@ export const realtimeServerEventNames = [
   realtimeEventNames.draftPatched,
   realtimeEventNames.draftAcknowledged,
   realtimeEventNames.draftRejected,
-  realtimeEventNames.draftConflict
+  realtimeEventNames.draftConflict,
+  realtimeEventNames.projectionSnapshot,
+  realtimeEventNames.projectionUpdated,
+  realtimeEventNames.projectionAcknowledged,
+  realtimeEventNames.projectionRejected,
+  realtimeEventNames.projectionConflict
 ] as const;
 
 export const realtimeClientEventNames = [
@@ -183,4 +193,35 @@ export type DraftRealtimeLifecyclePayload = {
   code?: string;
   message?: string;
   appliedDraftVersion?: number;
+};
+
+export type ProjectionRealtimeSnapshotPayload = {
+  projectionId: string;
+  workspaceId: string;
+  targetType: string;
+  targetId: string;
+  projectionVersion: number;
+  fields: Record<string, string>;
+};
+
+export type ProjectionRealtimeUpdatePayload = {
+  updateId: string;
+  projectionId: string;
+  workspaceId: string;
+  targetType: string;
+  targetId: string;
+  projectionVersion: number;
+  patch: Record<string, string | null>;
+};
+
+export type ProjectionRealtimeLifecyclePayload = {
+  updateId: string;
+  projectionId: string;
+  workspaceId: string;
+  targetType: string;
+  targetId: string;
+  status: "acknowledged" | "rejected" | "conflict";
+  code?: string;
+  message?: string;
+  appliedProjectionVersion?: number;
 };
