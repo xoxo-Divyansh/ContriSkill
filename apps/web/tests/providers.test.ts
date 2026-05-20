@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AuthClient } from "../src/lib/api/auth-client";
 import type { ContributionClient } from "../src/lib/api/contribution-client";
+import type { DraftClient } from "../src/lib/api/draft-client";
 import type { HttpClient } from "../src/lib/api/types";
 import type { UserClient } from "../src/lib/api/user-client";
 import { useApiClient, type ApiClientProviderValue } from "../src/providers/api-client-provider";
@@ -106,6 +107,25 @@ const createStubUserClient = (): UserClient => {
 
 const createStubContributionClient = (): ContributionClient => {
   return {
+    listPosts: async () =>
+      Promise.resolve({
+        items: [],
+        page: {
+          hasMore: false
+        }
+      }),
+    getPostById: async () =>
+      Promise.resolve({
+        id: "post_1",
+        creatorUserId: "usr_placeholder",
+        type: "mentorship",
+        title: "Placeholder",
+        description: "Placeholder",
+        difficulty: "low",
+        creditOffer: 10,
+        state: "open",
+        createdAt: new Date().toISOString()
+      }),
     createPost: async () =>
       Promise.resolve({
         id: "post_1",
@@ -137,11 +157,40 @@ const createStubContributionClient = (): ContributionClient => {
   };
 };
 
+const createStubDraftClient = (): DraftClient => {
+  return {
+    getSnapshot: async () =>
+      Promise.resolve({
+        version: 1,
+        draftId: "drf_1",
+        targetType: "contribution.post",
+        targetId: "post_1",
+        actorId: "usr_placeholder",
+        clientId: "cli_stub",
+        draftVersion: 0,
+        fields: {},
+        timestamp: new Date().toISOString()
+      }),
+    syncPatch: async () =>
+      Promise.resolve({
+        version: 1,
+        status: "acknowledged",
+        patchId: "ptc_1",
+        draftId: "drf_1",
+        targetType: "contribution.post",
+        targetId: "post_1",
+        appliedDraftVersion: 1,
+        acknowledgedAt: new Date().toISOString()
+      })
+  };
+};
+
 const createStubApiClients = (): ApiClientProviderValue => {
   return {
     httpClient: createStubHttpClient(),
     authClient: createStubAuthClient(),
     contributionClient: createStubContributionClient(),
+    draftClient: createStubDraftClient(),
     userClient: createStubUserClient()
   };
 };

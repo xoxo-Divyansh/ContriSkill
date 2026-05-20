@@ -2,12 +2,14 @@ import { getWebEnv } from "../../env";
 
 import { createAuthClient } from "./auth-client";
 import { createContributionClient } from "./contribution-client";
+import { createDraftClient } from "./draft-client";
 import { createHttpClient } from "./http-client";
 import { createMutationClient } from "./mutation-client";
 import { createUserClient } from "./user-client";
 
 export * from "./auth-client";
 export * from "./contribution-client";
+export * from "./draft-client";
 export * from "./error-normalizer";
 export * from "./http-client";
 export * from "./mutation-client";
@@ -25,5 +27,6 @@ export const apiHttpClient = createHttpClient({
 
 export const authClient = createAuthClient(apiHttpClient);
 export const contributionClient = createContributionClient(apiHttpClient);
+export const draftClient = createDraftClient(apiHttpClient);
 export const mutationClient = createMutationClient(apiHttpClient);
 export const userClient = createUserClient(apiHttpClient);

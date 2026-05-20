@@ -2,12 +2,16 @@
 
 import { Button, Input, Label, Stack, Text } from "@contriskill/ui";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { ContributionPost } from "../../../../../lib/api/contribution-client";
 import { ApiClientError } from "../../../../../lib/api/types";
+import { createDraftSyncStore } from "../../../../../lib/drafts";
 import { useContributionPresence } from "../../../../../lib/realtime/presence";
-import { contributionDetailSubscription } from "../../../../../lib/realtime/subscriptions";
+import {
+  contributionDraftSubscription,
+  contributionDetailSubscription
+} from "../../../../../lib/realtime/subscriptions";
 import { useApiClient } from "../../../../../providers/api-client-provider";
 import {
   useRealtimeEvent,
@@ -32,9 +36,11 @@ const normalizeApiErrorMessage = (error: unknown, fallback: string): string => {
 };
 
 export default function ContributionDetailPage({ params }: ContributionDetailPageProps) {
-  const { contributionClient } = useApiClient();
+  const { contributionClient, draftClient } = useApiClient();
   const { session } = useSession();
   const presence = useContributionPresence(params.id);
+  const draftStore = useMemo(() => createDraftSyncStore(), []);
+  const draftId = useMemo(() => `draft:contribution:${params.id}`, [params.id]);
 
   const [post, setPost] = useState<ContributionPost | undefined>();
   const [message, setMessage] = useState("I can help with this contribution.");
@@ -43,6 +49,11 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [draftNote, setDraftNote] = useState("");
+  const [draftSyncStatus, setDraftSyncStatus] = useState<string | undefined>();
+  const [draftSyncError, setDraftSyncError] = useState<string | undefined>();
+  const [isDraftSyncing, setIsDraftSyncing] = useState(false);
+  const [draftVersionLabel, setDraftVersionLabel] = useState("v0");
 
   const loadContributionDetail = useCallback(async () => {
     setIsLoading(true);
@@ -57,7 +68,26 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
     }
   }, [contributionClient, params.id, session.accessToken]);
 
+  const loadDraftSnapshot = useCallback(async () => {
+    setDraftSyncError(undefined);
+    try {
+      const snapshot = await draftClient.getSnapshot(draftId, session.accessToken);
+      draftStore.hydrateRemoteSnapshot(snapshot);
+      setDraftNote(snapshot.fields.note ?? "");
+      setDraftVersionLabel(`v${snapshot.draftVersion}`);
+      setDraftSyncStatus("Draft snapshot synchronized.");
+    } catch (error) {
+      const resolvedError = error as ApiClientError;
+      if (resolvedError?.status === 404) {
+        setDraftSyncStatus("No shared draft snapshot yet.");
+        return;
+      }
+      setDraftSyncError(normalizeApiErrorMessage(error, "Failed to load draft snapshot."));
+    }
+  }, [draftClient, draftId, draftStore, session.accessToken]);
+
   useRealtimeSubscription(contributionDetailSubscription(params.id));
+  useRealtimeSubscription(contributionDraftSubscription(params.id));
   useRealtimeEvent(
     useCallback(
       (event: RealtimeUiEvent) => {
@@ -69,17 +99,90 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
           event.eventName !== "contribution.post.updated.v1" &&
           event.eventName !== "contribution.post.state_changed.v1"
         ) {
+          if (
+            event.eventName === "collaboration.draft.snapshot.v1" ||
+            event.eventName === "collaboration.draft.patched.v1"
+          ) {
+            void loadDraftSnapshot();
+            return;
+          }
+
+          if (
+            event.eventName === "collaboration.draft.acknowledged.v1" ||
+            event.eventName === "collaboration.draft.rejected.v1" ||
+            event.eventName === "collaboration.draft.conflict.v1"
+          ) {
+            const payload = event.payload as {
+              patchId: string;
+              draftId: string;
+              targetType: string;
+              targetId: string;
+              status: "acknowledged" | "rejected" | "conflict";
+              appliedDraftVersion?: number;
+              message?: string;
+            };
+            draftStore.applyRealtimeLifecycle(payload);
+            const state = draftStore.getState();
+            if (state.remoteDraft) {
+              setDraftVersionLabel(`v${state.remoteDraft.draftVersion}`);
+            }
+            setDraftSyncStatus(`Draft lifecycle event processed: ${payload.status}.`);
+          }
+
           return;
         }
         void loadContributionDetail();
       },
-      [loadContributionDetail, params.id]
+      [draftStore, loadContributionDetail, loadDraftSnapshot, params.id]
     )
   );
 
   useEffect(() => {
     void loadContributionDetail();
-  }, [loadContributionDetail]);
+    void loadDraftSnapshot();
+  }, [loadContributionDetail, loadDraftSnapshot]);
+
+  const onSyncDraft = async () => {
+    if (!session.userId) {
+      return;
+    }
+
+    setIsDraftSyncing(true);
+    setDraftSyncError(undefined);
+    setDraftSyncStatus(undefined);
+
+    const remoteDraft = draftStore.getState().remoteDraft;
+    const nextEnvelope = {
+      version: 1 as const,
+      patchId: `dpt_${Math.random().toString(16).slice(2)}`,
+      draftId,
+      targetType: "contribution.post" as const,
+      targetId: params.id,
+      actorId: session.userId,
+      clientId: "web-client",
+      draftVersion: remoteDraft?.draftVersion ?? 0,
+      baseVersion: remoteDraft?.draftVersion ?? 0,
+      patch: {
+        note: draftNote
+      },
+      timestamp: new Date().toISOString()
+    };
+
+    draftStore.enqueueOptimisticPatch(nextEnvelope);
+    try {
+      const result = await draftClient.syncPatch(nextEnvelope, session.accessToken);
+      draftStore.applyPatchResult(result);
+      if (result.status === "acknowledged") {
+        setDraftVersionLabel(`v${result.appliedDraftVersion}`);
+      }
+      setDraftSyncStatus(`Draft patch ${result.status}.`);
+    } catch (error) {
+      draftStore.markPatchRetrying(nextEnvelope.patchId);
+      setDraftSyncError(normalizeApiErrorMessage(error, "Draft sync failed."));
+    } finally {
+      setIsDraftSyncing(false);
+    }
+  };
 
   const onSubmitApplication = async () => {
     setErrorMessage(undefined);
@@ -186,6 +289,35 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
           >
             Accept Application
           </Button>
+        </Stack>
+
+        <Stack gap="sm">
+          <Text variant="subtitle">Shared Draft Synchronization</Text>
+          <Text variant="caption" tone="muted">
+            Draft shell state {draftVersionLabel}
+          </Text>
+          <Stack gap="xs">
+            <Label htmlFor="draft-note">Draft Note</Label>
+            <Input
+              id="draft-note"
+              value={draftNote}
+              onChange={(event) => setDraftNote(event.currentTarget.value)}
+              placeholder="Add draft note for contribution coordination"
+            />
+          </Stack>
+          <Button variant="secondary" onClick={() => void onSyncDraft()} loading={isDraftSyncing}>
+            Sync Draft Patch
+          </Button>
+          {draftSyncStatus ? (
+            <Text variant="caption" tone="success">
+              {draftSyncStatus}
+            </Text>
+          ) : null}
+          {draftSyncError ? (
+            <Text variant="caption" tone="danger">
+              {draftSyncError}
+            </Text>
+          ) : null}
         </Stack>
 
         {errorMessage ? (

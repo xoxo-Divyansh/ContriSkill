@@ -24,3 +24,7 @@ export const contributionDetailSubscription = (contributionId: string): Realtime
 export const contributionPresenceSubscription = (contributionId: string): RealtimeSubscription => {
   return contributionDetailSubscription(contributionId);
 };
+
+export const contributionDraftSubscription = (contributionId: string): RealtimeSubscription => {
+  return contributionDetailSubscription(contributionId);
+};

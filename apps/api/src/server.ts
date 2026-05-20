@@ -11,6 +11,7 @@ import { createAuthRouter } from "./modules/auth/routes";
 import { createAuthSessionRuntime } from "./modules/auth/session";
 import type { AuthSessionRuntime } from "./modules/auth/session";
 import { createContributionRouter } from "./modules/contribution/routes";
+import { createDraftSyncRouter } from "./modules/draft/routes";
 import { createMutationRouter } from "./modules/mutation/routes";
 import { log } from "./observability/logger";
 import { setRealtimeBroadcaster } from "./realtime/broadcaster";
@@ -101,6 +102,7 @@ export const createServerRuntime = (
       ...(databaseClient ? { databaseClient } : {})
     })
   );
+  app.use("/api/v1", createDraftSyncRouter());
   app.use("/api/v1", createMutationRouter());
 
   const realtimeRuntime =
