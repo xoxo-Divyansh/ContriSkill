@@ -1,0 +1,318 @@
+import { randomUUID } from "node:crypto";
+
+import {
+  realtimeEventNames,
+  realtimeEventVersion,
+  type ClientHeartbeatAckPayload,
+  type ClientSubscribePayload,
+  type ClientUnsubscribePayload,
+  type RealtimeEventEnvelope,
+  type RealtimeScope
+} from "@contriskill/contracts";
+
+import type { SessionResolver } from "../modules/auth/session";
+import { log } from "../observability/logger";
+
+import { RealtimeConnectionRegistry } from "./connection-registry";
+import type { RealtimeClientHandle, RealtimeTransportLifecycle } from "./transport";
+import type { RealtimeConnectionContext, RealtimeTransportIncomingEnvelope } from "./types";
+
+const realtimePath = "/api/v1/realtime";
+const heartbeatIntervalMs = 15000;
+const heartbeatStaleThresholdMs = 45000;
+
+const getSessionToken = (url: URL): string | undefined => {
+  const token = url.searchParams.get("accessToken");
+  if (!token) {
+    return undefined;
+  }
+  const trimmed = token.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
+const createEvent = <TPayload>(
+  eventName: RealtimeEventEnvelope<TPayload>["eventName"],
+  scope: RealtimeScope,
+  payload: TPayload,
+  options: {
+    connectionId?: string;
+  } = {}
+): RealtimeEventEnvelope<TPayload> => {
+  return {
+    eventId: `rte_${randomUUID()}`,
+    eventName,
+    version: realtimeEventVersion,
+    occurredAt: new Date().toISOString(),
+    scope,
+    payload,
+    ...(options.connectionId ? { connectionId: options.connectionId } : {})
+  };
+};
+
+type RealtimeRuntimeDependencies = {
+  transport: RealtimeTransportLifecycle;
+  sessionResolver: SessionResolver;
+};
+
+export type RealtimeRuntime = {
+  path: string;
+  registry: RealtimeConnectionRegistry;
+  start: () => void;
+  stop: () => void;
+};
+
+export const createRealtimeRuntime = ({
+  transport,
+  sessionResolver
+}: RealtimeRuntimeDependencies): RealtimeRuntime => {
+  const registry = new RealtimeConnectionRegistry();
+  const clients = new Map<string, RealtimeClientHandle>();
+  let heartbeatTimer: NodeJS.Timeout | undefined;
+
+  const onUnauthorized = (client: RealtimeClientHandle, message: string): void => {
+    client.send(
+      createEvent(
+        realtimeEventNames.serverError,
+        { type: "actor", id: "anonymous" },
+        { code: "UNAUTHENTICATED", message },
+        { connectionId: client.id }
+      )
+    );
+    client.close(4401, "unauthenticated");
+  };
+
+  const disconnect = (client: RealtimeClientHandle, reason: string): void => {
+    registry.unregister(client.id);
+    clients.delete(client.id);
+    log("info", "Realtime client disconnected.", { connectionId: client.id, reason });
+  };
+
+  const handleSubscribe = (client: RealtimeClientHandle, payload: ClientSubscribePayload): void => {
+    const context = registry.get(client.id);
+    if (!context) {
+      onUnauthorized(client, "Connection context missing.");
+      return;
+    }
+
+    if (payload.subscription.scope.type === "actor") {
+      if (
+        context.actor.actorType !== "authenticated" ||
+        context.actor.userId !== payload.subscription.scope.id
+      ) {
+        client.send(
+          createEvent(
+            realtimeEventNames.serverSubscriptionRejected,
+            payload.subscription.scope,
+            { subscription: payload.subscription, reason: "forbidden_scope" },
+            { connectionId: client.id }
+          )
+        );
+        return;
+      }
+    }
+
+    const subscription = registry.subscribe(
+      client.id,
+      payload.subscription.scope,
+      payload.subscription.topic
+    );
+
+    client.send(
+      createEvent(
+        realtimeEventNames.serverSubscriptionAccepted,
+        subscription.scope,
+        { subscription: { scope: subscription.scope, topic: subscription.topic } },
+        { connectionId: client.id }
+      )
+    );
+  };
+
+  const handleUnsubscribe = (
+    client: RealtimeClientHandle,
+    payload: ClientUnsubscribePayload
+  ): void => {
+    const unsubscribed = registry.unsubscribe(
+      client.id,
+      payload.subscription.scope,
+      payload.subscription.topic
+    );
+    if (!unsubscribed) {
+      return;
+    }
+    client.send(
+      createEvent(
+        realtimeEventNames.serverSubscriptionAccepted,
+        payload.subscription.scope,
+        { subscription: payload.subscription },
+        { connectionId: client.id }
+      )
+    );
+  };
+
+  const handleHeartbeatAck = (
+    client: RealtimeClientHandle,
+    payload: ClientHeartbeatAckPayload
+  ): void => {
+    client.markAlive();
+    registry.updateHeartbeat(client.id, payload.heartbeatAt);
+  };
+
+  const handleMessage = (
+    client: RealtimeClientHandle,
+    event: RealtimeTransportIncomingEnvelope
+  ): void => {
+    switch (event.eventName) {
+      case realtimeEventNames.clientSubscribe:
+        handleSubscribe(client, event.payload as ClientSubscribePayload);
+        return;
+      case realtimeEventNames.clientUnsubscribe:
+        handleUnsubscribe(client, event.payload as ClientUnsubscribePayload);
+        return;
+      case realtimeEventNames.clientHeartbeatAck:
+        handleHeartbeatAck(client, event.payload as ClientHeartbeatAckPayload);
+        return;
+      default:
+        client.send(
+          createEvent(
+            realtimeEventNames.serverError,
+            { type: "actor", id: "system" },
+            {
+              code: "VALIDATION_ERROR",
+              message: `Unsupported event name: ${event.eventName}`
+            },
+            { connectionId: client.id }
+          )
+        );
+    }
+  };
+
+  const sendHeartbeat = (): void => {
+    const now = Date.now();
+    for (const context of registry.getAllConnections()) {
+      const client = clients.get(context.connectionId);
+      if (!client) {
+        continue;
+      }
+
+      const lastHeartbeat = new Date(context.lastHeartbeatAt).getTime();
+      if (Number.isFinite(lastHeartbeat) && now - lastHeartbeat > heartbeatStaleThresholdMs) {
+        client.send(
+          createEvent(
+            realtimeEventNames.serverDisconnected,
+            { type: "actor", id: context.actor.userId ?? "anonymous" },
+            { reason: "heartbeat_timeout" },
+            { connectionId: context.connectionId }
+          )
+        );
+        client.close(4001, "heartbeat_timeout");
+        disconnect(client, "heartbeat_timeout");
+        continue;
+      }
+
+      client.send(
+        createEvent(
+          realtimeEventNames.serverHeartbeat,
+          { type: "actor", id: context.actor.userId ?? "anonymous" },
+          { heartbeatAt: new Date().toISOString() },
+          { connectionId: context.connectionId }
+        )
+      );
+    }
+  };
+
+  transport.onUpgrade(async (event) => {
+    const requestUrl = new URL(event.request.url ?? "/", "http://localhost");
+    const token = getSessionToken(requestUrl);
+    const actor = await sessionResolver.resolveActorByAccessToken(token);
+
+    if (!actor || actor.actorType !== "authenticated" || actor.sessionState !== "authenticated") {
+      event.reject(401, "Unauthorized websocket connection");
+      return;
+    }
+
+    const connectionId = `rt_${randomUUID()}`;
+    const client = event.accept(connectionId);
+    const connectionContext: RealtimeConnectionContext = {
+      connectionId,
+      reconnectToken: `rct_${randomUUID()}`,
+      connectedAt: new Date().toISOString(),
+      actor,
+      state: "connected",
+      lastHeartbeatAt: new Date().toISOString()
+    };
+
+    clients.set(connectionId, client);
+    registry.register(connectionContext);
+
+    client.send(
+      createEvent(
+        realtimeEventNames.serverConnected,
+        { type: "actor", id: actor.userId ?? "unknown" },
+        {
+          reconnectToken: connectionContext.reconnectToken,
+          heartbeatIntervalMs
+        },
+        { connectionId }
+      )
+    );
+    log("info", "Realtime client connected.", {
+      connectionId,
+      actorUserId: actor.userId,
+      path: realtimePath
+    });
+  });
+
+  transport.onMessage((client, event) => {
+    handleMessage(client, event);
+  });
+
+  transport.onClose((client, code, reason) => {
+    disconnect(client, `${code}:${reason}`);
+  });
+
+  transport.onError((client, error) => {
+    log("error", "Realtime transport error.", {
+      connectionId: client?.id,
+      message: error.message
+    });
+    if (client) {
+      client.send(
+        createEvent(
+          realtimeEventNames.serverError,
+          { type: "actor", id: "system" },
+          { code: "RUNTIME_ERROR", message: "Realtime runtime error." },
+          { connectionId: client.id }
+        )
+      );
+    }
+  });
+
+  return {
+    path: realtimePath,
+    registry,
+    start: () => {
+      transport.start();
+      heartbeatTimer = setInterval(sendHeartbeat, heartbeatIntervalMs);
+      heartbeatTimer.unref();
+      log("info", "Realtime runtime started.", {
+        path: realtimePath,
+        heartbeatIntervalMs
+      });
+    },
+    stop: () => {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+        heartbeatTimer = undefined;
+      }
+      transport.stop();
+      for (const client of clients.values()) {
+        client.close(1001, "server_shutdown");
+      }
+      clients.clear();
+      for (const context of registry.getAllConnections()) {
+        registry.unregister(context.connectionId);
+      }
+      log("info", "Realtime runtime stopped.", { path: realtimePath });
+    }
+  };
+};

@@ -11,6 +11,7 @@ describe("parseWebEnv", () => {
 
     expect(env.appName).toBe("ContriSkill");
     expect(env.apiBaseUrl).toBe("http://localhost:4000/");
+    expect(env.realtimeUrl).toBe("ws://localhost:4000/api/v1/realtime");
   });
 
   it("fails fast when NEXT_PUBLIC_API_BASE_URL is missing", () => {

@@ -1,5 +1,6 @@
 const webEnvKeys = {
-  apiBaseUrl: "NEXT_PUBLIC_API_BASE_URL"
+  apiBaseUrl: "NEXT_PUBLIC_API_BASE_URL",
+  realtimeUrl: "NEXT_PUBLIC_REALTIME_URL"
 } as const;
 
 const parseUrl = (key: string, value: string): string => {
@@ -14,6 +15,7 @@ const parseUrl = (key: string, value: string): string => {
 export type WebRuntimeEnv = {
   NEXT_PUBLIC_APP_NAME?: string;
   NEXT_PUBLIC_API_BASE_URL?: string;
+  NEXT_PUBLIC_REALTIME_URL?: string;
 };
 
 const getOptionalString = (value: string | undefined): string | undefined => {
@@ -36,6 +38,15 @@ const getRequiredString = (value: string | undefined, key: string): string => {
 export type WebEnv = {
   appName: string;
   apiBaseUrl: string;
+  realtimeUrl: string;
+};
+
+const toWebSocketUrl = (apiBaseUrl: string): string => {
+  const url = new URL(apiBaseUrl);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  url.pathname = "/api/v1/realtime";
+  url.search = "";
+  return url.toString();
 };
 
 export const parseWebEnv = (raw: WebRuntimeEnv): WebEnv => {
@@ -44,9 +55,14 @@ export const parseWebEnv = (raw: WebRuntimeEnv): WebEnv => {
     webEnvKeys.apiBaseUrl,
     getRequiredString(raw.NEXT_PUBLIC_API_BASE_URL, webEnvKeys.apiBaseUrl)
   );
+  const realtimeUrl = parseUrl(
+    webEnvKeys.realtimeUrl,
+    getOptionalString(raw.NEXT_PUBLIC_REALTIME_URL) ?? toWebSocketUrl(apiBaseUrl)
+  );
 
   return {
     appName,
-    apiBaseUrl
+    apiBaseUrl,
+    realtimeUrl
   };
 };

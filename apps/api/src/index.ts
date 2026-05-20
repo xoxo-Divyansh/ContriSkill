@@ -1,13 +1,19 @@
+import { createServer as createHttpServer } from "node:http";
+
 import dotenv from "dotenv";
 
 import { getApiEnv } from "./config/env";
-import { createServer } from "./server";
+import { createServerRuntime } from "./server";
 
 dotenv.config();
 
 const apiEnv = getApiEnv();
-const app = createServer(apiEnv);
+const httpServer = createHttpServer();
+const runtime = createServerRuntime(apiEnv, { httpServer });
 
-app.listen(apiEnv.port, () => {
+httpServer.on("request", runtime.app);
+runtime.startRealtime();
+
+httpServer.listen(apiEnv.port, () => {
   console.log(`API foundation server listening on ${apiEnv.port}`);
 });

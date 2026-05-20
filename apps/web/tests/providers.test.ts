@@ -173,7 +173,8 @@ describe("app providers", () => {
         {
           env: {
             appName: "ContriSkill Test",
-            apiBaseUrl: "http://localhost:4000/"
+            apiBaseUrl: "http://localhost:4000/",
+            realtimeUrl: "ws://localhost:4000/api/v1/realtime"
           },
           session,
           apiClients: createStubApiClients()
