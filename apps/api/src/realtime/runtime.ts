@@ -20,6 +20,7 @@ import { log } from "../observability/logger";
 
 import type { RealtimeBroadcaster } from "./broadcaster";
 import { RealtimeConnectionRegistry } from "./connection-registry";
+import { RealtimeDiagnostics, type RealtimeDiagnosticsSnapshot } from "./diagnostics";
 import { RealtimeEventSequencer } from "./event-sequencer";
 import { RealtimePresenceRegistry } from "./presence-registry";
 import { authorizeSubscription } from "./subscription-policy";
@@ -81,6 +82,7 @@ export type RealtimeRuntime = {
   path: string;
   registry: RealtimeConnectionRegistry;
   broadcaster: RealtimeBroadcaster;
+  getDiagnostics: () => RealtimeDiagnosticsSnapshot;
   start: () => void;
   stop: () => void;
 };
@@ -102,10 +104,13 @@ export const createRealtimeRuntime = ({
   >();
   const inboundSeenEventIdsByConnection = new Map<string, Set<string>>();
   const lastInboundOccurredAtByConnection = new Map<string, number>();
+  const lastInboundSequenceByConnection = new Map<string, number>();
   const sequencer = new RealtimeEventSequencer();
+  const diagnostics = new RealtimeDiagnostics();
   let heartbeatTimer: NodeJS.Timeout | undefined;
 
   const onUnauthorized = (client: RealtimeClientHandle, message: string): void => {
+    diagnostics.increment("rejectedEvents");
     client.send(
       createEvent(
         realtimeEventNames.serverError,
@@ -119,10 +124,16 @@ export const createRealtimeRuntime = ({
 
   const cleanupDisconnectedSnapshots = (): void => {
     const now = Date.now();
+    let expired = 0;
     for (const [token, snapshot] of disconnectedSubscriptionSnapshot.entries()) {
       if (snapshot.expiresAt <= now) {
         disconnectedSubscriptionSnapshot.delete(token);
+        expired += 1;
       }
+    }
+    if (expired > 0) {
+      diagnostics.increment("replayWindowExpirations", expired);
+      log("debug", "Realtime reconnect replay snapshots expired.", { expiredCount: expired });
     }
   };
 
@@ -198,6 +209,9 @@ export const createRealtimeRuntime = ({
         .filter((roomId): roomId is string => Boolean(roomId));
       for (const roomId of disconnectedRooms) {
         const leaveResult = presenceRegistry.leaveRoom(client.id, roomId, context.actor.userId);
+        if (!leaveResult.left) {
+          diagnostics.increment("orphanedPresenceCleanups");
+        }
         if (leaveResult.left) {
           broadcastPresenceLeft(roomId, context.actor.userId, leaveResult.activeUserIds);
         }
@@ -223,6 +237,7 @@ export const createRealtimeRuntime = ({
     clients.delete(client.id);
     inboundSeenEventIdsByConnection.delete(client.id);
     lastInboundOccurredAtByConnection.delete(client.id);
+    lastInboundSequenceByConnection.delete(client.id);
     log("info", "Realtime client disconnected.", { connectionId: client.id, reason });
   };
 
@@ -235,6 +250,7 @@ export const createRealtimeRuntime = ({
 
     const authorization = authorizeSubscription(context.actor, payload.subscription);
     if (!authorization.allowed) {
+      diagnostics.increment("rejectedEvents");
       log("warn", "Realtime subscription rejected.", {
         connectionId: client.id,
         actorUserId: context.actor.userId,
@@ -255,6 +271,7 @@ export const createRealtimeRuntime = ({
     }
 
     if (!isTopicScopeCompatible(payload.subscription)) {
+      diagnostics.increment("rejectedEvents");
       log("warn", "Realtime subscription rejected due to topic/scope mismatch.", {
         connectionId: client.id,
         actorUserId: context.actor.userId,
@@ -292,6 +309,9 @@ export const createRealtimeRuntime = ({
       const roomId = extractContributionRoomId(subscription.topic);
       if (roomId) {
         const joinResult = presenceRegistry.joinRoom(client.id, roomId, context.actor.userId);
+        if (!joinResult.joined) {
+          diagnostics.increment("orphanedPresenceCleanups");
+        }
         broadcastPresenceSnapshot(client, roomId, joinResult.activeUserIds);
         if (joinResult.joined) {
           broadcastPresenceJoined(roomId, context.actor.userId, joinResult.activeUserIds);
@@ -318,6 +338,9 @@ export const createRealtimeRuntime = ({
       const roomId = extractContributionRoomId(payload.subscription.topic);
       if (roomId) {
         const leaveResult = presenceRegistry.leaveRoom(client.id, roomId, context.actor.userId);
+        if (!leaveResult.left) {
+          diagnostics.increment("orphanedPresenceCleanups");
+        }
         if (leaveResult.left) {
           broadcastPresenceLeft(roomId, context.actor.userId, leaveResult.activeUserIds);
         }
@@ -348,6 +371,7 @@ export const createRealtimeRuntime = ({
   ): void => {
     const validation = validateIncomingEnvelope(event);
     if (!validation.ok) {
+      diagnostics.increment("rejectedEvents");
       log("warn", "Realtime malformed event rejected.", {
         connectionId: client.id,
         reason: validation.reason
@@ -371,6 +395,8 @@ export const createRealtimeRuntime = ({
     const eventTime = Date.parse(validated.occurredAt);
     if (Number.isFinite(eventTime)) {
       if (now - eventTime > incomingEventStaleThresholdMs) {
+        diagnostics.increment("staleEvents");
+        diagnostics.increment("rejectedEvents");
         log("warn", "Realtime stale incoming event rejected.", {
           connectionId: client.id,
           eventId: validated.eventId,
@@ -379,6 +405,8 @@ export const createRealtimeRuntime = ({
         return;
       }
       if (eventTime - now > incomingEventFutureThresholdMs) {
+        diagnostics.increment("futureSkewEvents");
+        diagnostics.increment("rejectedEvents");
         log("warn", "Realtime future-skew incoming event rejected.", {
           connectionId: client.id,
           eventId: validated.eventId,
@@ -388,6 +416,8 @@ export const createRealtimeRuntime = ({
       }
       const lastOccurredAt = lastInboundOccurredAtByConnection.get(client.id) ?? 0;
       if (eventTime < lastOccurredAt) {
+        diagnostics.increment("outOfOrderEvents");
+        diagnostics.increment("rejectedEvents");
         log("warn", "Realtime out-of-order incoming event rejected.", {
           connectionId: client.id,
           eventId: validated.eventId,
@@ -398,8 +428,19 @@ export const createRealtimeRuntime = ({
       lastInboundOccurredAtByConnection.set(client.id, eventTime);
     }
 
+    if (typeof validated.sequence === "number") {
+      const previousSequence = lastInboundSequenceByConnection.get(client.id) ?? 0;
+      if (validated.sequence > previousSequence + 1) {
+        diagnostics.increment("sequenceGapEvents");
+      }
+      if (validated.sequence >= previousSequence) {
+        lastInboundSequenceByConnection.set(client.id, validated.sequence);
+      }
+    }
+
     const seenByConnection = inboundSeenEventIdsByConnection.get(client.id) ?? new Set<string>();
     if (seenByConnection.has(validated.eventId)) {
+      diagnostics.increment("duplicateEvents");
       log("debug", "Realtime duplicate incoming event ignored.", {
         connectionId: client.id,
         eventId: validated.eventId
@@ -410,6 +451,7 @@ export const createRealtimeRuntime = ({
     inboundSeenEventIdsByConnection.set(client.id, seenByConnection);
 
     if (!realtimeClientEventNames.includes(validated.eventName as never)) {
+      diagnostics.increment("rejectedEvents");
       client.send(
         createEvent(
           realtimeEventNames.serverError,
@@ -435,6 +477,7 @@ export const createRealtimeRuntime = ({
         handleHeartbeatAck(client, validated.payload as ClientHeartbeatAckPayload);
         return;
       default:
+        diagnostics.increment("rejectedEvents");
         client.send(
           createEvent(
             realtimeEventNames.serverError,
@@ -460,6 +503,7 @@ export const createRealtimeRuntime = ({
 
       const lastHeartbeat = new Date(context.lastHeartbeatAt).getTime();
       if (Number.isFinite(lastHeartbeat) && now - lastHeartbeat > heartbeatStaleThresholdMs) {
+        diagnostics.increment("heartbeatTimeoutDisconnects");
         client.send(
           createEvent(
             realtimeEventNames.serverDisconnected,
@@ -491,6 +535,8 @@ export const createRealtimeRuntime = ({
     const reconnectToken = getReconnectToken(requestUrl);
     const actor = await sessionResolver.resolveActorByAccessToken(token);
 
+    diagnostics.increment("reconnectAttempts");
+
     if (!actor || actor.actorType !== "authenticated" || actor.sessionState !== "authenticated") {
       event.reject(401, "Unauthorized websocket connection");
       return;
@@ -517,6 +563,7 @@ export const createRealtimeRuntime = ({
     clients.set(connectionId, client);
     registry.register(connectionContext);
     inboundSeenEventIdsByConnection.set(connectionId, new Set<string>());
+    lastInboundSequenceByConnection.set(connectionId, 0);
 
     client.send(
       createEvent(
@@ -531,20 +578,43 @@ export const createRealtimeRuntime = ({
     );
 
     if (restoredReconnectToken) {
+      diagnostics.increment("reconnectRestores");
       const snapshot = disconnectedSubscriptionSnapshot.get(restoredReconnectToken);
       disconnectedSubscriptionSnapshot.delete(restoredReconnectToken);
+      diagnostics.increment("subscriptionReplayAttempts", snapshot?.subscriptions.length ?? 0);
+
       for (const entry of snapshot?.subscriptions ?? []) {
-        handleSubscribe(client, {
-          subscription: {
-            scope: entry.scope,
-            topic: entry.topic
-          }
-        });
+        try {
+          handleSubscribe(client, {
+            subscription: {
+              scope: entry.scope,
+              topic: entry.topic
+            }
+          });
+          diagnostics.increment("subscriptionReplayRestores");
+        } catch {
+          diagnostics.increment("subscriptionReplayFailures");
+        }
       }
+
+      if ((snapshot?.subscriptions.length ?? 0) === 0) {
+        diagnostics.increment("subscriptionReplayFailures");
+      }
+
+      log("debug", "Realtime subscription replay diagnostics.", {
+        connectionId,
+        replayCount: snapshot?.subscriptions.length ?? 0
+      });
       log("info", "Realtime subscriptions restored from reconnect token.", {
         connectionId,
         actorUserId: actor.userId,
         restoredCount: snapshot?.subscriptions.length ?? 0
+      });
+    } else if (reconnectToken) {
+      diagnostics.increment("subscriptionReplayFailures");
+      log("warn", "Realtime reconnect token replay not restored.", {
+        connectionId,
+        reason: "missing_or_expired_reconnect_snapshot"
       });
     }
 
@@ -599,6 +669,7 @@ export const createRealtimeRuntime = ({
       try {
         client.send(dispatchEnvelope);
       } catch (error) {
+        diagnostics.increment("broadcastDispatchFailures");
         log("warn", "Realtime broadcast dispatch failed.", {
           connectionId: target.connectionId,
           topic,
@@ -627,10 +698,18 @@ export const createRealtimeRuntime = ({
     broadcast
   };
 
+  const getDiagnostics = (): RealtimeDiagnosticsSnapshot => {
+    return diagnostics.snapshot({
+      activeConnections: registry.getAllConnections().length,
+      reconnectSnapshotCount: disconnectedSubscriptionSnapshot.size
+    });
+  };
+
   return {
     path: realtimePath,
     registry,
     broadcaster,
+    getDiagnostics,
     start: () => {
       transport.start();
       heartbeatTimer = setInterval(sendHeartbeat, heartbeatIntervalMs);
@@ -662,6 +741,9 @@ export const createRealtimeRuntime = ({
               roomId,
               context.actor.userId
             );
+            if (!leaveResult.left) {
+              diagnostics.increment("orphanedPresenceCleanups");
+            }
             if (leaveResult.left) {
               broadcastPresenceLeft(roomId, context.actor.userId, leaveResult.activeUserIds);
             }
@@ -673,6 +755,7 @@ export const createRealtimeRuntime = ({
       disconnectedSubscriptionSnapshot.clear();
       inboundSeenEventIdsByConnection.clear();
       lastInboundOccurredAtByConnection.clear();
+      lastInboundSequenceByConnection.clear();
       sequencer.reset();
       log("info", "Realtime runtime stopped.", { path: realtimePath });
     }
