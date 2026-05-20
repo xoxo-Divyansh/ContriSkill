@@ -4,3 +4,4 @@ export * from "./draft.js";
 export * from "./mutation.js";
 export * from "./projection.js";
 export * from "./realtime.js";
+export * from "./workspace-session.js";

@@ -34,3 +34,9 @@ export const contributionProjectionSubscription = (
 ): RealtimeSubscription => {
   return contributionDetailSubscription(contributionId);
 };
+
+export const contributionWorkspaceSessionSubscription = (
+  contributionId: string
+): RealtimeSubscription => {
+  return contributionDetailSubscription(contributionId);
+};
