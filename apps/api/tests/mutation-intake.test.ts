@@ -85,6 +85,10 @@ describe("mutation intake boundary", () => {
     expect(staleResponse.status).toBe(409);
     expect(staleResponse.body?.data?.result?.status).toBe("conflict");
     expect(staleResponse.body?.data?.result?.code).toBe("STALE_BASE");
+    expect(staleResponse.body?.data?.result?.targetType).toBe("contribution.post");
+    expect(staleResponse.body?.data?.result?.targetId).toBe("post_1");
+    expect(staleResponse.body?.data?.result?.conflictDetails?.baseVersion).toBe(0);
+    expect(staleResponse.body?.data?.result?.conflictDetails?.serverVersion).toBe(1);
   });
 
   it("rejects actor mismatch for mutation ownership safety", async () => {
@@ -101,5 +105,28 @@ describe("mutation intake boundary", () => {
     expect(response.status).toBe(403);
     expect(response.body?.data?.result?.status).toBe("rejected");
     expect(response.body?.data?.result?.code).toBe("FORBIDDEN");
+  });
+
+  it("returns deterministic conflict response for replayed stale mutation", async () => {
+    const app = createServer(getApiEnv());
+    await request(app).post("/api/v1/mutations").set(actorHeaders).send(baseEnvelope);
+
+    const staleEnvelope = {
+      ...baseEnvelope,
+      mutationId: "mut_conflict_replay",
+      baseVersion: 0
+    };
+    const first = await request(app)
+      .post("/api/v1/mutations")
+      .set(actorHeaders)
+      .send(staleEnvelope);
+    const second = await request(app)
+      .post("/api/v1/mutations")
+      .set(actorHeaders)
+      .send(staleEnvelope);
+
+    expect(first.status).toBe(409);
+    expect(second.status).toBe(409);
+    expect(second.body?.data?.result).toEqual(first.body?.data?.result);
   });
 });
