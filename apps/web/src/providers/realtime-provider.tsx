@@ -16,6 +16,12 @@ import { createRealtimeClient, type RealtimeClient } from "../lib/realtime/clien
 
 import { useSession } from "./session-provider";
 
+export type RealtimeUiEvent = {
+  eventName: string;
+  topicHint?: string;
+  payload: unknown;
+};
+
 type RealtimeContextValue = {
   state: RealtimeConnectionState;
   connect: () => void;
@@ -23,9 +29,7 @@ type RealtimeContextValue = {
   subscribe: (subscription: RealtimeSubscription) => void;
   unsubscribe: (subscription: RealtimeSubscription) => void;
   subscribeTracked: (subscription: RealtimeSubscription) => () => void;
-  addEventListener: (
-    listener: (event: { eventName: string; topicHint?: string; payload: unknown }) => void
-  ) => () => void;
+  addEventListener: (listener: (event: RealtimeUiEvent) => void) => () => void;
 };
 
 const RealtimeContext = createContext<RealtimeContextValue | undefined>(undefined);
@@ -35,9 +39,7 @@ export const RealtimeProvider = ({ children }: { children: ReactNode }) => {
   const [state, setState] = useState<RealtimeConnectionState>("disconnected");
   const clientRef = useRef<RealtimeClient | undefined>(undefined);
   const subscriptionRef = useRef<RealtimeSubscription[]>([]);
-  const listenersRef = useRef<
-    Set<(event: { eventName: string; topicHint?: string; payload: unknown }) => void>
-  >(new Set());
+  const listenersRef = useRef<Set<(event: RealtimeUiEvent) => void>>(new Set());
 
   useEffect(() => {
     const env = getWebEnv();
@@ -55,8 +57,8 @@ export const RealtimeProvider = ({ children }: { children: ReactNode }) => {
         for (const listener of listenersRef.current.values()) {
           listener({
             eventName: event.eventName,
-            topicHint,
-            payload: event.payload
+            payload: event.payload,
+            ...(topicHint ? { topicHint } : {})
           });
         }
       }
@@ -157,11 +159,7 @@ export const useRealtimeSubscription = (subscription: RealtimeSubscription | und
   }, [realtime, subscription]);
 };
 
-export const useRealtimeEvent = (
-  handler:
-    | ((event: { eventName: string; topicHint?: string; payload: unknown }) => void)
-    | undefined
-): void => {
+export const useRealtimeEvent = (handler: ((event: RealtimeUiEvent) => void) | undefined): void => {
   const realtime = useRealtime();
 
   useEffect(() => {

@@ -8,6 +8,7 @@ import { ApiClientError } from "../../../../lib/api/types";
 import { contributionListSubscription } from "../../../../lib/realtime/subscriptions";
 import { useApiClient } from "../../../../providers/api-client-provider";
 import { useRealtimeEvent, useRealtimeSubscription } from "../../../../providers/realtime-provider";
+import type { RealtimeUiEvent } from "../../../../providers/realtime-provider";
 import { useSession } from "../../../../providers/session-provider";
 import { AppShell } from "../_components/app-shell";
 
@@ -80,7 +81,7 @@ export default function ContributionsPage() {
   useRealtimeSubscription(contributionListSubscription());
   useRealtimeEvent(
     useCallback(
-      (event) => {
+      (event: RealtimeUiEvent) => {
         if (event.topicHint !== "contribution:list") {
           return;
         }

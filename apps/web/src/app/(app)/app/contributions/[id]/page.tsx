@@ -6,12 +6,14 @@ import { useCallback, useEffect, useState } from "react";
 
 import type { ContributionPost } from "../../../../../lib/api/contribution-client";
 import { ApiClientError } from "../../../../../lib/api/types";
+import { useContributionPresence } from "../../../../../lib/realtime/presence";
 import { contributionDetailSubscription } from "../../../../../lib/realtime/subscriptions";
 import { useApiClient } from "../../../../../providers/api-client-provider";
 import {
   useRealtimeEvent,
   useRealtimeSubscription
 } from "../../../../../providers/realtime-provider";
+import type { RealtimeUiEvent } from "../../../../../providers/realtime-provider";
 import { useSession } from "../../../../../providers/session-provider";
 import { AppShell } from "../../_components/app-shell";
 
@@ -32,6 +34,7 @@ const normalizeApiErrorMessage = (error: unknown, fallback: string): string => {
 export default function ContributionDetailPage({ params }: ContributionDetailPageProps) {
   const { contributionClient } = useApiClient();
   const { session } = useSession();
+  const presence = useContributionPresence(params.id);
 
   const [post, setPost] = useState<ContributionPost | undefined>();
   const [message, setMessage] = useState("I can help with this contribution.");
@@ -57,7 +60,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
   useRealtimeSubscription(contributionDetailSubscription(params.id));
   useRealtimeEvent(
     useCallback(
-      (event) => {
+      (event: RealtimeUiEvent) => {
         if (event.topicHint !== `contribution:${params.id}`) {
           return;
         }
@@ -136,7 +139,10 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
             <Text variant="subtitle">{post.title}</Text>
             <Text tone="muted">{post.description}</Text>
             <Text variant="caption">
-              {post.id} • {post.type} • {post.difficulty} • {post.state}
+              {post.id} - {post.type} - {post.difficulty} - {post.state}
+            </Text>
+            <Text variant="caption" tone="muted">
+              Active collaborators: {presence.activeCount}
             </Text>
           </Stack>
         ) : (
