@@ -51,6 +51,24 @@ export type ContributionCollaboration = {
 };
 
 export type ContributionClient = {
+  listPosts(
+    input?: {
+      limit?: number;
+      cursor?: string;
+      state?: ContributionPost["state"];
+      type?: ContributionPost["type"];
+      difficulty?: ContributionPost["difficulty"];
+      sort?: "created_at_desc" | "created_at_asc";
+    },
+    accessToken?: string
+  ): Promise<{
+    items: ContributionPost[];
+    page: {
+      nextCursor?: string;
+      hasMore: boolean;
+    };
+  }>;
+  getPostById(postId: string, accessToken?: string): Promise<ContributionPost>;
   createPost(input: CreateContributionInput, accessToken?: string): Promise<ContributionPost>;
   submitApplication(
     input: { postId: string; message: string },
@@ -68,6 +86,45 @@ const sessionHeader = (accessToken: string): HeadersInit => {
 
 export const createContributionClient = (httpClient: HttpClient): ContributionClient => {
   return {
+    listPosts: async (input = {}, accessToken) => {
+      const query = new URLSearchParams();
+      if (input.limit) {
+        query.set("limit", String(input.limit));
+      }
+      if (input.cursor) {
+        query.set("cursor", input.cursor);
+      }
+      if (input.state) {
+        query.set("state", input.state);
+      }
+      if (input.type) {
+        query.set("type", input.type);
+      }
+      if (input.difficulty) {
+        query.set("difficulty", input.difficulty);
+      }
+      if (input.sort) {
+        query.set("sort", input.sort);
+      }
+
+      const suffix = query.toString();
+      const path = suffix.length > 0 ? `/api/v1/posts?${suffix}` : "/api/v1/posts";
+      return httpClient.get<{
+        items: ContributionPost[];
+        page: {
+          nextCursor?: string;
+          hasMore: boolean;
+        };
+      }>(path, {
+        ...(accessToken ? { headers: sessionHeader(accessToken) } : {})
+      });
+    },
+    getPostById: async (postId, accessToken) => {
+      const response = await httpClient.get<{ post: ContributionPost }>(`/api/v1/posts/${postId}`, {
+        ...(accessToken ? { headers: sessionHeader(accessToken) } : {})
+      });
+      return response.post;
+    },
     createPost: async (input, accessToken) => {
       const response = await httpClient.post<
         {

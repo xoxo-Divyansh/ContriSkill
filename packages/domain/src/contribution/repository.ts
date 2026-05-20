@@ -14,8 +14,29 @@ export type CreateContributionPostInput = {
   creditOffer: number;
 };
 
+export type ContributionPostQueryInput = {
+  limit: number;
+  cursor?: {
+    createdAt: string;
+    id: string;
+  };
+  state?: ContributionPost["state"];
+  type?: ContributionPost["type"];
+  difficulty?: ContributionPost["difficulty"];
+  sort?: "created_at_desc" | "created_at_asc";
+};
+
+export type ContributionPostQueryResult = {
+  items: ContributionPost[];
+  nextCursor?: {
+    createdAt: string;
+    id: string;
+  };
+};
+
 export type ContributionRepository = {
   createPost(input: CreateContributionPostInput): Promise<ContributionPost>;
+  listPosts(input: ContributionPostQueryInput): Promise<ContributionPostQueryResult>;
   getPostById(postId: string): Promise<ContributionPost | undefined>;
   updatePostDetails(
     postId: string,

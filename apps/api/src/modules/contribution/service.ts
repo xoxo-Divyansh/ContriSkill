@@ -4,6 +4,8 @@ import {
   assertCanAcceptApplication,
   assertCanSubmitApplication,
   assertValidPostCreation,
+  type ContributionPostQueryInput,
+  type ContributionPostQueryResult,
   ContributionDomainError,
   transitionPostState,
   type ContributionApplication,
@@ -17,6 +19,7 @@ import type { RequestActor } from "../auth/types";
 
 import { ContributionServiceError } from "./errors";
 import type {
+  ContributionQueryService,
   AcceptContributionApplicationInput,
   ContributionService,
   ContributionServiceDependencies,
@@ -397,4 +400,27 @@ export const createContributionService = (
   dependencies: ContributionServiceDependencies
 ): ContributionService => {
   return new DefaultContributionService(dependencies);
+};
+
+export const createContributionQueryService = (
+  dependencies: ContributionServiceDependencies
+): ContributionQueryService => {
+  return {
+    listContributions: async (
+      actor: RequestActor | undefined,
+      input: ContributionPostQueryInput
+    ): Promise<ContributionPostQueryResult> => {
+      assertAuthenticatedActor(actor);
+      assertActorCapability(actor, "contribution:read");
+      return dependencies.repository.listPosts(input);
+    },
+    getContributionById: async (
+      actor: RequestActor | undefined,
+      postId: string
+    ): Promise<ContributionPost | undefined> => {
+      assertAuthenticatedActor(actor);
+      assertActorCapability(actor, "contribution:read");
+      return dependencies.repository.getPostById(postId);
+    }
+  };
 };

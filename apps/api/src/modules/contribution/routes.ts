@@ -7,7 +7,7 @@ import { requireCapabilityMiddleware } from "../../middleware/require-capability
 
 import { ContributionController } from "./controller";
 import { createContributionPersistenceRuntime } from "./repository";
-import { createContributionService } from "./service";
+import { createContributionQueryService, createContributionService } from "./service";
 import { createContributionUnitOfWork } from "./unit-of-work";
 
 export const createContributionRouter = (dependencies: {
@@ -24,7 +24,28 @@ export const createContributionRouter = (dependencies: {
     eventRepository: runtime.eventRepository,
     ...(unitOfWork ? { unitOfWork } : {})
   });
-  const contributionController = new ContributionController(contributionService);
+  const contributionQueryService = createContributionQueryService({
+    repository: runtime.repository,
+    eventRepository: runtime.eventRepository,
+    ...(unitOfWork ? { unitOfWork } : {})
+  });
+  const contributionController = new ContributionController(
+    contributionService,
+    contributionQueryService
+  );
+
+  contributionRouter.get(
+    "/posts",
+    requireAuthMiddleware,
+    requireCapabilityMiddleware("contribution:read"),
+    contributionController.list
+  );
+  contributionRouter.get(
+    "/posts/:postId",
+    requireAuthMiddleware,
+    requireCapabilityMiddleware("contribution:read"),
+    contributionController.detail
+  );
 
   contributionRouter.post(
     "/posts",

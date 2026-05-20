@@ -2,6 +2,8 @@ import type {
   ContributionApplication,
   ContributionCollaboration,
   ContributionDomainEvent,
+  ContributionPostQueryInput,
+  ContributionPostQueryResult,
   ContributionPost,
   ContributionRepository,
   ContributionEventRepository
@@ -79,4 +81,15 @@ export type ContributionService = {
     actor: RequestActor | undefined,
     input: AcceptContributionApplicationInput
   ): Promise<ContributionServiceResult<ContributionCollaboration>>;
+};
+
+export type ContributionQueryService = {
+  listContributions(
+    actor: RequestActor | undefined,
+    input: ContributionPostQueryInput
+  ): Promise<ContributionPostQueryResult>;
+  getContributionById(
+    actor: RequestActor | undefined,
+    postId: string
+  ): Promise<ContributionPost | undefined>;
 };
