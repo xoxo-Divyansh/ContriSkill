@@ -42,6 +42,15 @@ export type SubmitApplicationRequestBody = {
   message: string;
 };
 
+export type ListContributionQueryParams = {
+  limit?: string;
+  cursor?: string;
+  state?: ContributionPost["state"];
+  type?: ContributionPost["type"];
+  difficulty?: ContributionPost["difficulty"];
+  sort?: "created_at_desc" | "created_at_asc";
+};
+
 export type ContributionApiResponseMeta = {
   events: Pick<ContributionDomainEvent, "id" | "type" | "aggregateType" | "aggregateId">[];
 };
@@ -74,6 +83,18 @@ export type SubmitApplicationResponse = ApiSuccessEnvelope<{
 export type AcceptApplicationResponse = ApiSuccessEnvelope<{
   collaboration: ContributionCollaboration;
   meta: ContributionApiResponseMeta;
+}>;
+
+export type ListContributionsResponse = ApiSuccessEnvelope<{
+  items: ContributionPost[];
+  page: {
+    nextCursor?: string;
+    hasMore: boolean;
+  };
+}>;
+
+export type ContributionDetailResponse = ApiSuccessEnvelope<{
+  post: ContributionPost;
 }>;
 
 export type ContributionErrorResponse = ApiErrorEnvelope;

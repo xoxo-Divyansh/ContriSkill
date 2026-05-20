@@ -118,4 +118,66 @@ describe("contribution API integration", () => {
     expect(updateResponse.status).toBe(403);
     expect(updateResponse.body?.error?.code).toBe("FORBIDDEN");
   });
+
+  it("lists contributions with pagination", async () => {
+    const app = createServer(getApiEnv());
+
+    await request(app).post("/api/v1/posts").set(requesterHeaders).send({
+      type: "mentorship",
+      title: "List post 1",
+      description: "desc 1",
+      difficulty: "medium",
+      creditOffer: 10
+    });
+    await request(app).post("/api/v1/posts").set(requesterHeaders).send({
+      type: "collaboration",
+      title: "List post 2",
+      description: "desc 2",
+      difficulty: "high",
+      creditOffer: 20
+    });
+
+    const firstPage = await request(app)
+      .get("/api/v1/posts?limit=1&sort=created_at_desc")
+      .set(requesterHeaders);
+
+    expect(firstPage.status).toBe(200);
+    expect(firstPage.body?.data?.items).toHaveLength(1);
+    expect(firstPage.body?.data?.page?.hasMore).toBe(true);
+    expect(firstPage.body?.data?.page?.nextCursor).toBeTruthy();
+
+    const secondPage = await request(app)
+      .get(
+        `/api/v1/posts?limit=1&cursor=${encodeURIComponent(firstPage.body.data.page.nextCursor)}`
+      )
+      .set(requesterHeaders);
+
+    expect(secondPage.status).toBe(200);
+    expect(secondPage.body?.data?.items).toHaveLength(1);
+  });
+
+  it("retrieves contribution detail and supports filtering", async () => {
+    const app = createServer(getApiEnv());
+
+    const created = await request(app).post("/api/v1/posts").set(requesterHeaders).send({
+      type: "educational",
+      title: "Detail post",
+      description: "detail desc",
+      difficulty: "low",
+      creditOffer: 5
+    });
+
+    const postId: string = created.body?.data?.post?.id;
+    const detail = await request(app).get(`/api/v1/posts/${postId}`).set(requesterHeaders);
+    expect(detail.status).toBe(200);
+    expect(detail.body?.data?.post?.id).toBe(postId);
+
+    const filtered = await request(app)
+      .get("/api/v1/posts?type=educational&difficulty=low&state=open")
+      .set(requesterHeaders);
+    expect(filtered.status).toBe(200);
+    expect(filtered.body?.data?.items?.some((item: { id: string }) => item.id === postId)).toBe(
+      true
+    );
+  });
 });

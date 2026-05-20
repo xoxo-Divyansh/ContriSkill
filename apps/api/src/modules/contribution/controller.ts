@@ -1,16 +1,23 @@
+import type { ContributionPost } from "@contriskill/domain";
 import type { Request, Response } from "express";
 
 import type {
   AcceptApplicationResponse,
   CancelContributionResponse,
+  ContributionDetailResponse,
   ContributionErrorResponse,
   CreateContributionResponse,
+  ListContributionsResponse,
   SubmitApplicationResponse,
   TransitionContributionResponse,
   UpdateContributionResponse
 } from "./contracts";
 import { ContributionServiceError } from "./errors";
-import type { ContributionService, ContributionServiceResult } from "./types";
+import type {
+  ContributionQueryService,
+  ContributionService,
+  ContributionServiceResult
+} from "./types";
 import {
   validateCancelContributionBody,
   validateCreateContributionBody,
@@ -97,7 +104,131 @@ const getPathParam = (value: string | string[] | undefined): string | undefined 
 };
 
 export class ContributionController {
-  constructor(private readonly service: ContributionService) {}
+  constructor(
+    private readonly service: ContributionService,
+    private readonly queryService: ContributionQueryService
+  ) {}
+
+  private decodeCursor = (encodedCursor: string): { createdAt: string; id: string } | undefined => {
+    try {
+      const decoded = Buffer.from(encodedCursor, "base64").toString("utf8");
+      const parsed = JSON.parse(decoded) as { createdAt?: string; id?: string };
+      if (!parsed.createdAt || !parsed.id) {
+        return undefined;
+      }
+      return { createdAt: parsed.createdAt, id: parsed.id };
+    } catch {
+      return undefined;
+    }
+  };
+
+  private encodeCursor = (cursor: { createdAt: string; id: string }): string => {
+    return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64");
+  };
+
+  list = async (
+    request: Request,
+    response: Response<ListContributionsResponse | ContributionErrorResponse>
+  ): Promise<void> => {
+    const rawLimit = typeof request.query.limit === "string" ? request.query.limit : undefined;
+    const limit = rawLimit ? Number(rawLimit) : 20;
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+      sendError(
+        response,
+        httpStatus.unprocessableEntity,
+        "VALIDATION_ERROR",
+        "limit must be an integer between 1 and 50."
+      );
+      return;
+    }
+
+    const cursorRaw = typeof request.query.cursor === "string" ? request.query.cursor : undefined;
+    const cursor = cursorRaw ? this.decodeCursor(cursorRaw) : undefined;
+    if (cursorRaw && !cursor) {
+      sendError(response, httpStatus.unprocessableEntity, "VALIDATION_ERROR", "cursor is invalid.");
+      return;
+    }
+
+    const state =
+      typeof request.query.state === "string"
+        ? (request.query.state as ContributionPost["state"])
+        : undefined;
+    const type =
+      typeof request.query.type === "string"
+        ? (request.query.type as ContributionPost["type"])
+        : undefined;
+    const difficulty =
+      typeof request.query.difficulty === "string"
+        ? (request.query.difficulty as ContributionPost["difficulty"])
+        : undefined;
+    const sort =
+      request.query.sort === "created_at_asc" || request.query.sort === "created_at_desc"
+        ? request.query.sort
+        : "created_at_desc";
+
+    try {
+      const result = await this.queryService.listContributions(request.actor, {
+        limit,
+        ...(cursor ? { cursor } : {}),
+        ...(state ? { state } : {}),
+        ...(type ? { type } : {}),
+        ...(difficulty ? { difficulty } : {}),
+        sort
+      });
+
+      response.status(httpStatus.ok).json({
+        data: {
+          items: result.items,
+          page: {
+            hasMore: Boolean(result.nextCursor),
+            ...(result.nextCursor ? { nextCursor: this.encodeCursor(result.nextCursor) } : {})
+          }
+        }
+      });
+    } catch (error) {
+      if (error instanceof ContributionServiceError) {
+        mapServiceErrorToHttp(response, error);
+        return;
+      }
+      throw error;
+    }
+  };
+
+  detail = async (
+    request: Request,
+    response: Response<ContributionDetailResponse | ContributionErrorResponse>
+  ): Promise<void> => {
+    const postId = getPathParam(request.params.postId);
+    if (!postId) {
+      sendError(
+        response,
+        httpStatus.unprocessableEntity,
+        "VALIDATION_ERROR",
+        "postId is required."
+      );
+      return;
+    }
+
+    try {
+      const post = await this.queryService.getContributionById(request.actor, postId);
+      if (!post) {
+        sendError(response, httpStatus.notFound, "NOT_FOUND", "Contribution post not found.");
+        return;
+      }
+
+      response.status(httpStatus.ok).json({
+        data: {
+          post
+        }
+      });
+    } catch (error) {
+      if (error instanceof ContributionServiceError) {
+        mapServiceErrorToHttp(response, error);
+        return;
+      }
+      throw error;
+    }
+  };
 
   create = async (
     request: Request,

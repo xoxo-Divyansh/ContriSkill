@@ -1,20 +1,15 @@
 "use client";
 
 import type { ContributionDifficulty, ContributionType } from "@contriskill/domain";
-import { Button, Card, CardBody, CardHeader, Input, Label, Stack, Text } from "@contriskill/ui";
-import Link from "next/link";
+import { Button, Input, Label, Stack, Text } from "@contriskill/ui";
 import { useEffect, useMemo, useState } from "react";
 
-import type { ContributionPost } from "../../../../lib/api/contribution-client";
 import { ApiClientError } from "../../../../lib/api/types";
 import { useApiClient } from "../../../../providers/api-client-provider";
 import { useSession } from "../../../../providers/session-provider";
 import { AppShell } from "../_components/app-shell";
 
-import {
-  loadContributionWorkspaceState,
-  saveContributionWorkspaceState
-} from "./_lib/contribution-state";
+import { ContributionCard } from "./_components/contribution-card";
 
 const contributionTypes: ContributionType[] = [
   "mentorship",
@@ -30,7 +25,6 @@ const normalizeApiErrorMessage = (error: unknown, fallback: string): string => {
   if (error instanceof ApiClientError) {
     return error.message;
   }
-
   return fallback;
 };
 
@@ -43,29 +37,55 @@ export default function ContributionsPage() {
   const [type, setType] = useState<ContributionType>("mentorship");
   const [difficulty, setDifficulty] = useState<ContributionDifficulty>("medium");
   const [creditOffer, setCreditOffer] = useState("50");
-  const [posts, setPosts] = useState<ContributionPost[]>([]);
+
+  const [posts, setPosts] = useState<
+    Awaited<ReturnType<typeof contributionClient.listPosts>>["items"]
+  >([]);
+  const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
-  useEffect(() => {
-    const storedState = loadContributionWorkspaceState();
-    setPosts(storedState.posts);
-    setIsLoading(false);
-  }, []);
+  const [stateFilter, setStateFilter] = useState<string>("");
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const [difficultyFilter, setDifficultyFilter] = useState<string>("");
 
-  useEffect(() => {
-    if (isLoading) {
-      return;
+  const loadContributions = async (cursor?: string) => {
+    const result = await contributionClient.listPosts(
+      {
+        limit: 10,
+        ...(cursor ? { cursor } : {}),
+        ...(stateFilter ? { state: stateFilter as never } : {}),
+        ...(typeFilter ? { type: typeFilter as never } : {}),
+        ...(difficultyFilter ? { difficulty: difficultyFilter as never } : {})
+      },
+      session.accessToken
+    );
+
+    if (cursor) {
+      setPosts((current: typeof posts) => [...current, ...result.items]);
+    } else {
+      setPosts(result.items);
     }
+    setNextCursor(result.page.nextCursor);
+  };
 
-    const previous = loadContributionWorkspaceState();
-    saveContributionWorkspaceState({
-      ...previous,
-      posts
-    });
-  }, [isLoading, posts]);
+  useEffect(() => {
+    const run = async () => {
+      setIsLoading(true);
+      setErrorMessage(undefined);
+      try {
+        await loadContributions();
+      } catch (error) {
+        setErrorMessage(normalizeApiErrorMessage(error, "Failed to load contributions."));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void run();
+  }, [session.accessToken, stateFilter, typeFilter, difficultyFilter]);
 
   const canSubmit = useMemo(() => {
     return Boolean(title && description && creditOffer);
@@ -76,7 +96,7 @@ export default function ContributionsPage() {
     setErrorMessage(undefined);
     setStatusMessage(undefined);
     try {
-      const post = await contributionClient.createPost(
+      const created = await contributionClient.createPost(
         {
           type,
           title,
@@ -86,11 +106,10 @@ export default function ContributionsPage() {
         },
         session.accessToken
       );
-
-      setPosts((current) => [post, ...current]);
+      setPosts((current: typeof posts) => [created, ...current]);
       setTitle("");
       setDescription("");
-      setStatusMessage(`Created contribution ${post.id}.`);
+      setStatusMessage(`Created contribution ${created.id}.`);
     } catch (error) {
       setErrorMessage(normalizeApiErrorMessage(error, "Failed to create contribution."));
     } finally {
@@ -98,144 +117,148 @@ export default function ContributionsPage() {
     }
   };
 
-  const onRefreshLocalState = () => {
-    const nextState = loadContributionWorkspaceState();
-    setPosts(nextState.posts);
-    setStatusMessage("Refreshed contribution workspace.");
+  const onLoadMore = async () => {
+    if (!nextCursor) {
+      return;
+    }
+    setIsLoadingMore(true);
     setErrorMessage(undefined);
+    try {
+      await loadContributions(nextCursor);
+    } catch (error) {
+      setErrorMessage(normalizeApiErrorMessage(error, "Failed to load more contributions."));
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   return (
-    <AppShell
-      title="Contributions"
-      subtitle="Create contributions and review recent contribution state."
-    >
+    <AppShell title="Contributions" subtitle="Discover and create contribution posts.">
       <Stack gap="lg">
-        <Card variant="elevated">
-          <CardHeader>
-            <Text variant="subtitle">Create Contribution</Text>
-            <Text variant="caption" tone="muted">
-              Uses current contribution API contracts.
-            </Text>
-          </CardHeader>
-          <CardBody>
-            <Stack gap="sm">
-              <Stack gap="xs">
-                <Label htmlFor="contribution-title">Title</Label>
-                <Input
-                  id="contribution-title"
-                  value={title}
-                  onChange={(event) => setTitle(event.currentTarget.value)}
-                  placeholder="Need support for implementation review"
-                />
-              </Stack>
-              <Stack gap="xs">
-                <Label htmlFor="contribution-description">Description</Label>
-                <Input
-                  id="contribution-description"
-                  value={description}
-                  onChange={(event) => setDescription(event.currentTarget.value)}
-                  placeholder="Describe contribution expectations"
-                />
-              </Stack>
-              <Stack direction="row" gap="sm">
-                <Stack gap="xs">
-                  <Label htmlFor="contribution-type">Type</Label>
-                  <select
-                    id="contribution-type"
-                    name="contribution-type"
-                    aria-label="Contribution type"
-                    value={type}
-                    onChange={(event) => setType(event.currentTarget.value as ContributionType)}
-                  >
-                    {contributionTypes.map((value) => (
-                      <option key={value} value={value}>
-                        {value}
-                      </option>
-                    ))}
-                  </select>
-                </Stack>
-                <Stack gap="xs">
-                  <Label htmlFor="contribution-difficulty">Difficulty</Label>
-                  <select
-                    id="contribution-difficulty"
-                    name="contribution-difficulty"
-                    aria-label="Contribution difficulty"
-                    value={difficulty}
-                    onChange={(event) =>
-                      setDifficulty(event.currentTarget.value as ContributionDifficulty)
-                    }
-                  >
-                    {contributionDifficulties.map((value) => (
-                      <option key={value} value={value}>
-                        {value}
-                      </option>
-                    ))}
-                  </select>
-                </Stack>
-                <Stack gap="xs">
-                  <Label htmlFor="contribution-credit">Credit Offer</Label>
-                  <Input
-                    id="contribution-credit"
-                    inputMode="numeric"
-                    value={creditOffer}
-                    onChange={(event) => setCreditOffer(event.currentTarget.value)}
-                  />
-                </Stack>
-              </Stack>
-              <Button
-                onClick={() => void onCreateContribution()}
-                loading={isSubmitting}
-                disabled={!canSubmit}
+        <Stack gap="sm">
+          <Text variant="subtitle">Create Contribution</Text>
+          <Stack gap="xs">
+            <Label htmlFor="contribution-title">Title</Label>
+            <Input
+              id="contribution-title"
+              value={title}
+              onChange={(event) => setTitle(event.currentTarget.value)}
+            />
+          </Stack>
+          <Stack gap="xs">
+            <Label htmlFor="contribution-description">Description</Label>
+            <Input
+              id="contribution-description"
+              value={description}
+              onChange={(event) => setDescription(event.currentTarget.value)}
+            />
+          </Stack>
+          <Stack direction="row" gap="sm">
+            <Stack gap="xs">
+              <Label htmlFor="contribution-type">Type</Label>
+              <select
+                id="contribution-type"
+                name="contribution-type"
+                aria-label="Contribution type"
+                value={type}
+                onChange={(event) => setType(event.currentTarget.value as ContributionType)}
               >
-                Create Contribution
-              </Button>
+                {contributionTypes.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
             </Stack>
-          </CardBody>
-        </Card>
+            <Stack gap="xs">
+              <Label htmlFor="contribution-difficulty">Difficulty</Label>
+              <select
+                id="contribution-difficulty"
+                name="contribution-difficulty"
+                aria-label="Contribution difficulty"
+                value={difficulty}
+                onChange={(event) =>
+                  setDifficulty(event.currentTarget.value as ContributionDifficulty)
+                }
+              >
+                {contributionDifficulties.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </Stack>
+            <Stack gap="xs">
+              <Label htmlFor="contribution-credit">Credit Offer</Label>
+              <Input
+                id="contribution-credit"
+                inputMode="numeric"
+                value={creditOffer}
+                onChange={(event) => setCreditOffer(event.currentTarget.value)}
+              />
+            </Stack>
+          </Stack>
+          <Button
+            onClick={() => void onCreateContribution()}
+            loading={isSubmitting}
+            disabled={!canSubmit}
+          >
+            Create Contribution
+          </Button>
+        </Stack>
+
+        <Stack gap="sm">
+          <Text variant="subtitle">Browse Contributions</Text>
+          <Stack direction="row" gap="sm">
+            <Input
+              aria-label="Filter by post state"
+              placeholder="state (optional)"
+              value={stateFilter}
+              onChange={(event) => setStateFilter(event.currentTarget.value)}
+            />
+            <Input
+              aria-label="Filter by contribution type"
+              placeholder="type (optional)"
+              value={typeFilter}
+              onChange={(event) => setTypeFilter(event.currentTarget.value)}
+            />
+            <Input
+              aria-label="Filter by difficulty"
+              placeholder="difficulty (optional)"
+              value={difficultyFilter}
+              onChange={(event) => setDifficultyFilter(event.currentTarget.value)}
+            />
+          </Stack>
+        </Stack>
 
         {errorMessage ? (
           <Text variant="caption" tone="danger">
             {errorMessage}
           </Text>
         ) : null}
-
         {statusMessage ? (
           <Text variant="caption" tone="success">
             {statusMessage}
           </Text>
         ) : null}
 
-        <Card variant="subtle">
-          <CardHeader>
-            <Text variant="subtitle">Recent Contributions</Text>
-          </CardHeader>
-          <CardBody>
-            <Stack direction="row" justify="space-between" align="center">
-              <Text variant="caption" tone="muted">
-                Local workspace state is persisted for this browser profile.
-              </Text>
-              <Button variant="ghost" onClick={onRefreshLocalState} disabled={isLoading}>
-                Refresh
-              </Button>
-            </Stack>
-            {isLoading ? (
-              <Text tone="muted">Loading contribution workspace...</Text>
-            ) : posts.length === 0 ? (
-              <Text tone="muted">No contributions yet. Create one to begin.</Text>
-            ) : (
-              <Stack gap="xs">
-                {posts.map((post) => (
-                  <Text key={post.id} variant="caption">
-                    <Link href={`/app/contributions/${post.id}`}>
-                      {post.title} ({post.state}) - {post.id}
-                    </Link>
-                  </Text>
-                ))}
-              </Stack>
-            )}
-          </CardBody>
-        </Card>
+        {isLoading ? (
+          <Text tone="muted">Loading contributions...</Text>
+        ) : posts.length === 0 ? (
+          <Text tone="muted">No contributions found for the current filters.</Text>
+        ) : (
+          <Stack gap="sm">
+            {posts.map((post: (typeof posts)[number]) => (
+              <ContributionCard key={post.id} post={post} />
+            ))}
+          </Stack>
+        )}
+
+        {nextCursor ? (
+          <Button variant="secondary" onClick={() => void onLoadMore()} loading={isLoadingMore}>
+            Load More
+          </Button>
+        ) : null}
       </Stack>
     </AppShell>
   );

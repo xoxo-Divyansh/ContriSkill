@@ -5,6 +5,8 @@ import type {
   ContributionCollaboration,
   ContributionDomainEvent,
   ContributionEventRepository,
+  ContributionPostQueryInput,
+  ContributionPostQueryResult,
   ContributionPost,
   ContributionRepository,
   CreateContributionPostInput
@@ -126,6 +128,54 @@ class InMemoryContributionRepository implements ContributionRepository {
     };
     this.posts.set(id, post);
     return post;
+  }
+
+  async listPosts(input: ContributionPostQueryInput): Promise<ContributionPostQueryResult> {
+    const sorted = [...this.posts.values()]
+      .filter((post) => (input.state ? post.state === input.state : true))
+      .filter((post) => (input.type ? post.type === input.type : true))
+      .filter((post) => (input.difficulty ? post.difficulty === input.difficulty : true))
+      .sort((left, right) => {
+        const leftTime = new Date(left.createdAt).getTime();
+        const rightTime = new Date(right.createdAt).getTime();
+
+        if (leftTime === rightTime) {
+          return input.sort === "created_at_asc"
+            ? left.id.localeCompare(right.id)
+            : right.id.localeCompare(left.id);
+        }
+
+        return input.sort === "created_at_asc" ? leftTime - rightTime : rightTime - leftTime;
+      });
+
+    const filteredByCursor = input.cursor
+      ? sorted.filter((post) => {
+          const createdAt = new Date(post.createdAt).getTime();
+          const cursorCreatedAt = new Date(input.cursor?.createdAt ?? "").getTime();
+
+          if (input.sort === "created_at_asc") {
+            return (
+              createdAt > cursorCreatedAt ||
+              (createdAt === cursorCreatedAt && post.id > (input.cursor?.id ?? ""))
+            );
+          }
+
+          return (
+            createdAt < cursorCreatedAt ||
+            (createdAt === cursorCreatedAt && post.id < (input.cursor?.id ?? ""))
+          );
+        })
+      : sorted;
+
+    const items = filteredByCursor.slice(0, input.limit);
+    const hasMore = filteredByCursor.length > input.limit;
+    const cursorSource = items[items.length - 1];
+    return {
+      items,
+      ...(hasMore && cursorSource
+        ? { nextCursor: { createdAt: cursorSource.createdAt, id: cursorSource.id } }
+        : {})
+    };
   }
 
   async getPostById(postId: string): Promise<ContributionPost | undefined> {
@@ -260,6 +310,62 @@ class DbContributionRepository implements ContributionRepository {
     );
 
     return toPost(result.rows[0] as ContributionPostRow);
+  }
+
+  async listPosts(input: ContributionPostQueryInput): Promise<ContributionPostQueryResult> {
+    const conditions: string[] = [];
+    const values: Array<string | number> = [];
+
+    if (input.state) {
+      values.push(input.state);
+      conditions.push(`state = $${values.length}`);
+    }
+
+    if (input.type) {
+      values.push(input.type);
+      conditions.push(`post_type = $${values.length}`);
+    }
+
+    if (input.difficulty) {
+      values.push(input.difficulty);
+      conditions.push(`difficulty = $${values.length}`);
+    }
+
+    if (input.cursor) {
+      values.push(input.cursor.createdAt);
+      const createdAtIndex = values.length;
+      values.push(input.cursor.id);
+      const idIndex = values.length;
+      const comparator = input.sort === "created_at_asc" ? ">" : "<";
+      conditions.push(
+        `(created_at ${comparator} $${createdAtIndex}::timestamptz or (created_at = $${createdAtIndex}::timestamptz and id ${comparator} $${idIndex}))`
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? `where ${conditions.join(" and ")}` : "";
+    const direction = input.sort === "created_at_asc" ? "asc" : "desc";
+    values.push(input.limit + 1);
+    const limitIndex = values.length;
+
+    const result = await this.client.query<ContributionPostRow>(
+      `select id, creator_user_id, post_type, title, description, difficulty, credit_offer, state, created_at
+       from contribution_posts
+       ${whereClause}
+       order by created_at ${direction}, id ${direction}
+       limit $${limitIndex}`,
+      values
+    );
+
+    const rows = result.rows.slice(0, input.limit);
+    const items = rows.map(toPost);
+    const hasMore = result.rows.length > input.limit;
+    const cursorSource = rows[rows.length - 1];
+    return {
+      items,
+      ...(hasMore && cursorSource
+        ? { nextCursor: { createdAt: toIso(cursorSource.created_at), id: cursorSource.id } }
+        : {})
+    };
   }
 
   async getPostById(postId: string): Promise<ContributionPost | undefined> {

@@ -1,17 +1,14 @@
 "use client";
 
-import { Button, Card, CardBody, CardHeader, Input, Label, Stack, Text } from "@contriskill/ui";
+import { Button, Input, Label, Stack, Text } from "@contriskill/ui";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
+import type { ContributionPost } from "../../../../../lib/api/contribution-client";
 import { ApiClientError } from "../../../../../lib/api/types";
 import { useApiClient } from "../../../../../providers/api-client-provider";
 import { useSession } from "../../../../../providers/session-provider";
 import { AppShell } from "../../_components/app-shell";
-import {
-  loadContributionWorkspaceState,
-  saveContributionWorkspaceState
-} from "../_lib/contribution-state";
 
 type ContributionDetailPageProps = {
   params: {
@@ -31,20 +28,29 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
   const { contributionClient } = useApiClient();
   const { session } = useSession();
 
-  const [workspaceState, setWorkspaceState] = useState(loadContributionWorkspaceState());
-  const post = useMemo(
-    () => workspaceState.posts.find((item) => item.id === params.id),
-    [params.id, workspaceState.posts]
-  );
+  const [post, setPost] = useState<ContributionPost | undefined>();
   const [message, setMessage] = useState("I can help with this contribution.");
+  const [applicationId, setApplicationId] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const latestApplicationForPost = useMemo(
-    () => workspaceState.applications.find((application) => application.postId === params.id),
-    [params.id, workspaceState.applications]
-  );
+  useEffect(() => {
+    const run = async () => {
+      setIsLoading(true);
+      setErrorMessage(undefined);
+      try {
+        const loaded = await contributionClient.getPostById(params.id, session.accessToken);
+        setPost(loaded);
+      } catch (error) {
+        setErrorMessage(normalizeApiErrorMessage(error, "Failed to load contribution detail."));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void run();
+  }, [contributionClient, params.id, session.accessToken]);
 
   const onSubmitApplication = async () => {
     setErrorMessage(undefined);
@@ -58,13 +64,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
         },
         session.accessToken
       );
-
-      const nextState = {
-        ...workspaceState,
-        applications: [application, ...workspaceState.applications]
-      };
-      setWorkspaceState(nextState);
-      saveContributionWorkspaceState(nextState);
+      setApplicationId(application.id);
       setStatusMessage(`Submitted application ${application.id}.`);
     } catch (error) {
       setErrorMessage(normalizeApiErrorMessage(error, "Failed to submit application."));
@@ -74,7 +74,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
   };
 
   const onAcceptApplication = async () => {
-    if (!latestApplicationForPost) {
+    if (!applicationId) {
       return;
     }
 
@@ -85,18 +85,11 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
       const collaboration = await contributionClient.acceptApplication(
         {
           postId: params.id,
-          applicationId: latestApplicationForPost.id
+          applicationId
         },
         session.accessToken
       );
-
-      const nextState = {
-        ...workspaceState,
-        collaborations: [collaboration, ...workspaceState.collaborations]
-      };
-      setWorkspaceState(nextState);
-      saveContributionWorkspaceState(nextState);
-      setStatusMessage(`Accepted application ${latestApplicationForPost.id}.`);
+      setStatusMessage(`Accepted application. Collaboration ${collaboration.id} created.`);
     } catch (error) {
       setErrorMessage(normalizeApiErrorMessage(error, "Failed to accept application."));
     } finally {
@@ -107,67 +100,61 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
   return (
     <AppShell
       title="Contribution Detail"
-      subtitle="Manage application actions for this contribution."
+      subtitle="Read contribution detail and test application flow."
     >
       <Stack gap="lg">
-        <Card variant="subtle">
-          <CardHeader>
-            <Text variant="subtitle">Contribution</Text>
-          </CardHeader>
-          <CardBody>
-            {post ? (
-              <Stack gap="xs">
-                <Text variant="label">{post.title}</Text>
-                <Text tone="muted">{post.description}</Text>
-                <Text variant="caption">
-                  {post.id} — {post.state}
-                </Text>
-              </Stack>
-            ) : (
-              <Stack gap="xs">
-                <Text tone="muted">
-                  Contribution not found in local workspace state. Return to contributions list.
-                </Text>
-                <Link href="/app/contributions">Back to Contributions</Link>
-              </Stack>
-            )}
-          </CardBody>
-        </Card>
+        {isLoading ? (
+          <Text tone="muted">Loading contribution detail...</Text>
+        ) : post ? (
+          <Stack gap="xs">
+            <Text variant="subtitle">{post.title}</Text>
+            <Text tone="muted">{post.description}</Text>
+            <Text variant="caption">
+              {post.id} • {post.type} • {post.difficulty} • {post.state}
+            </Text>
+          </Stack>
+        ) : (
+          <Stack gap="xs">
+            <Text tone="muted">Contribution not found.</Text>
+            <Link href="/app/contributions">Back to Contributions</Link>
+          </Stack>
+        )}
 
-        <Card variant="outlined">
-          <CardHeader>
-            <Text variant="subtitle">Application Actions</Text>
-          </CardHeader>
-          <CardBody>
-            <Stack gap="sm">
-              <Stack gap="xs">
-                <Label htmlFor="application-message">Application Message</Label>
-                <Input
-                  id="application-message"
-                  value={message}
-                  onChange={(event) => setMessage(event.currentTarget.value)}
-                />
-              </Stack>
-              <Stack direction="row" gap="sm">
-                <Button
-                  variant="secondary"
-                  onClick={() => void onSubmitApplication()}
-                  loading={isSubmitting}
-                  disabled={!message}
-                >
-                  Submit Application
-                </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => void onAcceptApplication()}
-                  disabled={!latestApplicationForPost || isSubmitting}
-                >
-                  Accept Latest Application
-                </Button>
-              </Stack>
-            </Stack>
-          </CardBody>
-        </Card>
+        <Stack gap="sm">
+          <Text variant="subtitle">Application Actions</Text>
+          <Stack gap="xs">
+            <Label htmlFor="application-message">Application Message</Label>
+            <Input
+              id="application-message"
+              value={message}
+              onChange={(event) => setMessage(event.currentTarget.value)}
+            />
+          </Stack>
+          <Button
+            variant="secondary"
+            onClick={() => void onSubmitApplication()}
+            loading={isSubmitting}
+            disabled={!message}
+          >
+            Submit Application
+          </Button>
+          <Stack gap="xs">
+            <Label htmlFor="application-id">Application ID</Label>
+            <Input
+              id="application-id"
+              value={applicationId}
+              onChange={(event) => setApplicationId(event.currentTarget.value)}
+              placeholder="Paste or use submitted application id"
+            />
+          </Stack>
+          <Button
+            variant="ghost"
+            onClick={() => void onAcceptApplication()}
+            disabled={!applicationId || isSubmitting}
+          >
+            Accept Application
+          </Button>
+        </Stack>
 
         {errorMessage ? (
           <Text variant="caption" tone="danger">
