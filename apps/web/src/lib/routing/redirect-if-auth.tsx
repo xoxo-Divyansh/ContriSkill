@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import React, { type ReactNode } from "react";
 
 import { useSession } from "../../providers/session-provider";
@@ -17,7 +18,23 @@ export const shouldRedirectAuthenticatedUser = (session: SessionSnapshot): boole
 };
 
 export const RedirectIfAuth = ({ children, fallback }: RedirectIfAuthProps) => {
-  const { session } = useSession();
+  const { session, isReady } = useSession();
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    if (shouldRedirectAuthenticatedUser(session)) {
+      if (typeof window !== "undefined") {
+        window.location.replace(routePaths.appHome);
+      }
+    }
+  }, [isReady, session]);
+
+  if (!isReady) {
+    return <>{children}</>;
+  }
 
   if (!shouldRedirectAuthenticatedUser(session)) {
     return <>{children}</>;

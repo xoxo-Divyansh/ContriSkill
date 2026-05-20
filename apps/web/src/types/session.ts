@@ -14,6 +14,7 @@ export type SessionSnapshot = {
 export type SessionContextValue = {
   session: SessionSnapshot;
   isAuthenticated: boolean;
+  isReady: boolean;
   setSession: (nextSession: SessionSnapshot) => void;
   clearSession: () => void;
 };
