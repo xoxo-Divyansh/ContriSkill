@@ -23,7 +23,19 @@ export const canAccessRoleGuard = (session: SessionSnapshot, minimumRole: Role):
 };
 
 export const RequireRole = ({ children, minimumRole, fallback }: RequireRoleProps) => {
-  const { session } = useSession();
+  const { session, isReady } = useSession();
+
+  if (!isReady) {
+    return (
+      <>
+        {fallback ?? (
+          <div data-route-intent={`redirect:${routePaths.signIn}`}>
+            ROUTE_GUARD_REQUIRE_ROLE:{minimumRole}
+          </div>
+        )}
+      </>
+    );
+  }
 
   if (canAccessRoleGuard(session, minimumRole)) {
     return <>{children}</>;

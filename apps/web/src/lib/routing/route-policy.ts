@@ -6,7 +6,10 @@ export const routePaths = {
   root: "/",
   publicHome: "/home",
   signIn: "/sign-in",
-  appHome: "/app"
+  appHome: "/app",
+  contributions: "/app/contributions",
+  profile: "/app/profile",
+  settings: "/app/settings"
 } as const;
 
 export type RouteKey = keyof typeof routePaths;
@@ -34,6 +37,21 @@ export const routePolicies: Record<RouteKey, RoutePolicy> = {
     redirectAuthenticatedTo: routePaths.appHome
   },
   appHome: {
+    requiresAuth: true,
+    minimumRole: "user",
+    redirectUnauthenticatedTo: routePaths.signIn
+  },
+  contributions: {
+    requiresAuth: true,
+    minimumRole: "user",
+    redirectUnauthenticatedTo: routePaths.signIn
+  },
+  profile: {
+    requiresAuth: true,
+    minimumRole: "user",
+    redirectUnauthenticatedTo: routePaths.signIn
+  },
+  settings: {
     requiresAuth: true,
     minimumRole: "user",
     redirectUnauthenticatedTo: routePaths.signIn

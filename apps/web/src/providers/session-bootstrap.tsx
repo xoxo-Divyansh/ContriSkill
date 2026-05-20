@@ -10,10 +10,14 @@ import { useSession } from "./session-provider";
 
 export const SessionBootstrap = () => {
   const { authClient } = useApiClient();
-  const { session, setSession, clearSession } = useSession();
+  const { session, isReady, setSession, clearSession } = useSession();
   const hasLoadedRef = useRef(false);
 
   useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
     if (hasLoadedRef.current) {
       return;
     }
@@ -39,7 +43,7 @@ export const SessionBootstrap = () => {
     };
 
     void run();
-  }, [authClient, clearSession, session.accessToken, session.refreshToken, setSession]);
+  }, [authClient, clearSession, isReady, session.accessToken, session.refreshToken, setSession]);
 
   return null;
 };
