@@ -7,10 +7,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ContributionPost } from "../../../../../lib/api/contribution-client";
 import { ApiClientError } from "../../../../../lib/api/types";
 import { createDraftSyncStore } from "../../../../../lib/drafts";
+import { createProjectionSyncStore } from "../../../../../lib/projections";
 import { useContributionPresence } from "../../../../../lib/realtime/presence";
 import {
   contributionDraftSubscription,
-  contributionDetailSubscription
+  contributionDetailSubscription,
+  contributionProjectionSubscription
 } from "../../../../../lib/realtime/subscriptions";
 import { useApiClient } from "../../../../../providers/api-client-provider";
 import {
@@ -36,11 +38,13 @@ const normalizeApiErrorMessage = (error: unknown, fallback: string): string => {
 };
 
 export default function ContributionDetailPage({ params }: ContributionDetailPageProps) {
-  const { contributionClient, draftClient } = useApiClient();
+  const { contributionClient, draftClient, projectionClient } = useApiClient();
   const { session } = useSession();
   const presence = useContributionPresence(params.id);
   const draftStore = useMemo(() => createDraftSyncStore(), []);
+  const projectionStore = useMemo(() => createProjectionSyncStore(), []);
   const draftId = useMemo(() => `draft:contribution:${params.id}`, [params.id]);
+  const projectionId = useMemo(() => `projection:contribution:${params.id}`, [params.id]);
 
   const [post, setPost] = useState<ContributionPost | undefined>();
   const [message, setMessage] = useState("I can help with this contribution.");
@@ -54,6 +58,11 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
   const [draftSyncError, setDraftSyncError] = useState<string | undefined>();
   const [isDraftSyncing, setIsDraftSyncing] = useState(false);
   const [draftVersionLabel, setDraftVersionLabel] = useState("v0");
+  const [projectionNote, setProjectionNote] = useState("");
+  const [projectionSyncStatus, setProjectionSyncStatus] = useState<string | undefined>();
+  const [projectionSyncError, setProjectionSyncError] = useState<string | undefined>();
+  const [isProjectionSyncing, setIsProjectionSyncing] = useState(false);
+  const [projectionVersionLabel, setProjectionVersionLabel] = useState("v0");
 
   const loadContributionDetail = useCallback(async () => {
     setIsLoading(true);
@@ -86,8 +95,29 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
     }
   }, [draftClient, draftId, draftStore, session.accessToken]);
 
+  const loadProjectionSnapshot = useCallback(async () => {
+    setProjectionSyncError(undefined);
+    try {
+      const snapshot = await projectionClient.getSnapshot(projectionId, session.accessToken);
+      projectionStore.hydrateRemoteSnapshot(snapshot);
+      setProjectionNote(snapshot.fields.note ?? "");
+      setProjectionVersionLabel(`v${snapshot.projectionVersion}`);
+      setProjectionSyncStatus("Projection snapshot synchronized.");
+    } catch (error) {
+      const resolvedError = error as ApiClientError;
+      if (resolvedError?.status === 404) {
+        setProjectionSyncStatus("No shared workspace projection yet.");
+        return;
+      }
+      setProjectionSyncError(
+        normalizeApiErrorMessage(error, "Failed to load projection snapshot.")
+      );
+    }
+  }, [projectionClient, projectionId, projectionStore, session.accessToken]);
+
   useRealtimeSubscription(contributionDetailSubscription(params.id));
   useRealtimeSubscription(contributionDraftSubscription(params.id));
+  useRealtimeSubscription(contributionProjectionSubscription(params.id));
   useRealtimeEvent(
     useCallback(
       (event: RealtimeUiEvent) => {
@@ -129,18 +159,57 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
             setDraftSyncStatus(`Draft lifecycle event processed: ${payload.status}.`);
           }
 
+          if (
+            event.eventName === "collaboration.projection.snapshot.v1" ||
+            event.eventName === "collaboration.projection.updated.v1"
+          ) {
+            void loadProjectionSnapshot();
+            return;
+          }
+
+          if (
+            event.eventName === "collaboration.projection.acknowledged.v1" ||
+            event.eventName === "collaboration.projection.rejected.v1" ||
+            event.eventName === "collaboration.projection.conflict.v1"
+          ) {
+            const payload = event.payload as {
+              updateId: string;
+              projectionId: string;
+              workspaceId: string;
+              targetType: string;
+              targetId: string;
+              status: "acknowledged" | "rejected" | "conflict";
+              appliedProjectionVersion?: number;
+              message?: string;
+            };
+            projectionStore.applyRealtimeLifecycle(payload);
+            const state = projectionStore.getState();
+            if (state.remoteProjection) {
+              setProjectionVersionLabel(`v${state.remoteProjection.projectionVersion}`);
+            }
+            setProjectionSyncStatus(`Projection lifecycle event processed: ${payload.status}.`);
+          }
+
           return;
         }
         void loadContributionDetail();
       },
-      [draftStore, loadContributionDetail, loadDraftSnapshot, params.id]
+      [
+        draftStore,
+        loadContributionDetail,
+        loadDraftSnapshot,
+        loadProjectionSnapshot,
+        params.id,
+        projectionStore
+      ]
     )
   );
 
   useEffect(() => {
     void loadContributionDetail();
     void loadDraftSnapshot();
-  }, [loadContributionDetail, loadDraftSnapshot]);
+    void loadProjectionSnapshot();
+  }, [loadContributionDetail, loadDraftSnapshot, loadProjectionSnapshot]);
 
   const onSyncDraft = async () => {
     if (!session.userId) {
@@ -202,6 +271,49 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
       setErrorMessage(normalizeApiErrorMessage(error, "Failed to submit application."));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const onSyncProjection = async () => {
+    if (!session.userId) {
+      return;
+    }
+
+    setIsProjectionSyncing(true);
+    setProjectionSyncError(undefined);
+    setProjectionSyncStatus(undefined);
+
+    const remoteProjection = projectionStore.getState().remoteProjection;
+    const nextEnvelope = {
+      version: 1 as const,
+      updateId: `upd_${Math.random().toString(16).slice(2)}`,
+      projectionId,
+      workspaceId: `workspace:${params.id}`,
+      targetType: "contribution.workspace" as const,
+      targetId: params.id,
+      actorId: session.userId,
+      clientId: "web-client",
+      projectionVersion: remoteProjection?.projectionVersion ?? 0,
+      baseDraftVersion: remoteProjection?.projectionVersion ?? 0,
+      patch: {
+        note: projectionNote
+      },
+      timestamp: new Date().toISOString()
+    };
+
+    projectionStore.enqueueOptimisticUpdate(nextEnvelope);
+    try {
+      const result = await projectionClient.syncUpdate(nextEnvelope, session.accessToken);
+      projectionStore.applyUpdateResult(result);
+      if (result.status === "acknowledged") {
+        setProjectionVersionLabel(`v${result.appliedProjectionVersion}`);
+      }
+      setProjectionSyncStatus(`Projection update ${result.status}.`);
+    } catch (error) {
+      projectionStore.markUpdateRetrying(nextEnvelope.updateId);
+      setProjectionSyncError(normalizeApiErrorMessage(error, "Projection sync failed."));
+    } finally {
+      setIsProjectionSyncing(false);
     }
   };
 
@@ -316,6 +428,39 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
           {draftSyncError ? (
             <Text variant="caption" tone="danger">
               {draftSyncError}
+            </Text>
+          ) : null}
+        </Stack>
+
+        <Stack gap="sm">
+          <Text variant="subtitle">Shared Workspace Projection</Text>
+          <Text variant="caption" tone="muted">
+            Projection shell state {projectionVersionLabel}
+          </Text>
+          <Stack gap="xs">
+            <Label htmlFor="projection-note">Projection Note</Label>
+            <Input
+              id="projection-note"
+              value={projectionNote}
+              onChange={(event) => setProjectionNote(event.currentTarget.value)}
+              placeholder="Project workspace state for collaborators"
+            />
+          </Stack>
+          <Button
+            variant="secondary"
+            onClick={() => void onSyncProjection()}
+            loading={isProjectionSyncing}
+          >
+            Sync Projection Update
+          </Button>
+          {projectionSyncStatus ? (
+            <Text variant="caption" tone="success">
+              {projectionSyncStatus}
+            </Text>
+          ) : null}
+          {projectionSyncError ? (
+            <Text variant="caption" tone="danger">
+              {projectionSyncError}
             </Text>
           ) : null}
         </Stack>
