@@ -13,6 +13,7 @@ import {
   type ContributionDomainEvent,
   type ContributionPost
 } from "../../../../../packages/domain/src/contribution/index.js";
+import { log } from "../../observability/logger";
 import { assertActorCapability, assertAuthenticatedActor } from "../auth/authorization";
 import { AuthorizationError } from "../auth/capabilities";
 import type { RequestActor } from "../auth/types";
@@ -115,6 +116,20 @@ const defaultUnitOfWork = {
 class DefaultContributionService implements ContributionService {
   constructor(private readonly dependencies: ContributionServiceDependencies) {}
 
+  private async publishRealtime(events: ContributionDomainEvent[]): Promise<void> {
+    if (!this.dependencies.liveEventPublisher) {
+      return;
+    }
+    try {
+      await this.dependencies.liveEventPublisher.publishContributionEvents(events);
+    } catch (error) {
+      log("warn", "Contribution realtime publish failed.", {
+        message: error instanceof Error ? error.message : "unknown",
+        eventCount: events.length
+      });
+    }
+  }
+
   private async withServiceBoundary<T>(work: () => Promise<T>): Promise<T> {
     try {
       return await work();
@@ -150,6 +165,7 @@ class DefaultContributionService implements ContributionService {
 
         const event = createEvent("post.created", "post", post.id, actor.userId);
         await this.dependencies.eventRepository.appendEvent(event);
+        await this.publishRealtime([event]);
 
         return {
           data: post,
@@ -188,6 +204,7 @@ class DefaultContributionService implements ContributionService {
         const updated = await this.dependencies.repository.updatePostDetails(postId, input);
         const event = createEvent("post.updated", "post", updated.id, actor.userId);
         await this.dependencies.eventRepository.appendEvent(event);
+        await this.publishRealtime([event]);
 
         return {
           data: updated,
@@ -232,6 +249,7 @@ class DefaultContributionService implements ContributionService {
           reason: reason ?? "user_cancelled"
         });
         await this.dependencies.eventRepository.appendEvent(event);
+        await this.publishRealtime([event]);
 
         return {
           data: updated,
@@ -275,6 +293,7 @@ class DefaultContributionService implements ContributionService {
           reason: input.reason ?? "manual_transition"
         });
         await this.dependencies.eventRepository.appendEvent(event);
+        await this.publishRealtime([event]);
 
         return {
           data: updated,
@@ -313,6 +332,7 @@ class DefaultContributionService implements ContributionService {
           applicationId: application.id
         });
         await this.dependencies.eventRepository.appendEvent(event);
+        await this.publishRealtime([event]);
 
         return {
           data: application,
@@ -386,6 +406,7 @@ class DefaultContributionService implements ContributionService {
         await Promise.all(
           events.map((event) => this.dependencies.eventRepository.appendEvent(event))
         );
+        await this.publishRealtime(events);
 
         return {
           data: collaboration,

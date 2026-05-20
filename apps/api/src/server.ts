@@ -1,3 +1,5 @@
+import type { Server as HttpServer } from "node:http";
+
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
@@ -7,8 +9,12 @@ import { createPostgresClient } from "./db/postgres";
 import { createRequestActorMiddleware } from "./middleware/request-actor";
 import { createAuthRouter } from "./modules/auth/routes";
 import { createAuthSessionRuntime } from "./modules/auth/session";
+import type { AuthSessionRuntime } from "./modules/auth/session";
 import { createContributionRouter } from "./modules/contribution/routes";
 import { log } from "./observability/logger";
+import { setRealtimeBroadcaster } from "./realtime/broadcaster";
+import { createRealtimeRuntime } from "./realtime/runtime";
+import { createWsTransport } from "./realtime/ws-transport";
 import { healthRouter } from "./routes/health";
 
 const getCorsAllowedOrigins = (configuredOrigin: string): string[] => {
@@ -36,6 +42,21 @@ export const createServer = (
     databaseClientOverride?: ReturnType<typeof createPostgresClient>;
   } = {}
 ) => {
+  return createServerRuntime(env, dependencies).app;
+};
+
+export const createServerRuntime = (
+  env: ApiEnv,
+  dependencies: {
+    databaseClientOverride?: ReturnType<typeof createPostgresClient>;
+    httpServer?: HttpServer;
+  } = {}
+): {
+  app: express.Express;
+  authSessionRuntime: AuthSessionRuntime;
+  startRealtime: () => void;
+  stopRealtime: () => void;
+} => {
   const app = express();
   const corsAllowedOrigins = getCorsAllowedOrigins(env.wsCorsOrigin);
   const databaseClient = dependencies.databaseClientOverride ?? createPostgresClient(env);
@@ -80,5 +101,25 @@ export const createServer = (
     })
   );
 
-  return app;
+  const realtimeRuntime =
+    dependencies.httpServer &&
+    createRealtimeRuntime({
+      transport: createWsTransport(dependencies.httpServer, "/api/v1/realtime"),
+      sessionResolver: authSessionRuntime.sessionResolver
+    });
+
+  if (realtimeRuntime) {
+    setRealtimeBroadcaster(realtimeRuntime.broadcaster);
+  }
+
+  return {
+    app,
+    authSessionRuntime,
+    startRealtime: () => {
+      realtimeRuntime?.start();
+    },
+    stopRealtime: () => {
+      realtimeRuntime?.stop();
+    }
+  };
 };

@@ -4,6 +4,7 @@ import type { ApiEnv } from "../../config/env";
 import type { DatabaseClient } from "../../db/postgres";
 import { requireAuthMiddleware } from "../../middleware/require-auth";
 import { requireCapabilityMiddleware } from "../../middleware/require-capability";
+import { createContributionBroadcaster } from "../../realtime/broadcaster";
 
 import { ContributionController } from "./controller";
 import { createContributionPersistenceRuntime } from "./repository";
@@ -22,6 +23,35 @@ export const createContributionRouter = (dependencies: {
   const contributionService = createContributionService({
     repository: runtime.repository,
     eventRepository: runtime.eventRepository,
+    liveEventPublisher: {
+      publishContributionEvents: async (events) => {
+        const broadcaster = createContributionBroadcaster();
+        for (const event of events) {
+          if (event.aggregateType !== "post") {
+            continue;
+          }
+          if (event.type === "post.created") {
+            broadcaster.publishCreated({ postId: event.aggregateId });
+            continue;
+          }
+          if (event.type === "post.updated") {
+            broadcaster.publishUpdated({ postId: event.aggregateId });
+            continue;
+          }
+          if (event.type === "post.state_changed") {
+            broadcaster.publishStateChanged({
+              postId: event.aggregateId,
+              state:
+                typeof event.payload === "object" &&
+                event.payload !== null &&
+                "toState" in event.payload
+                  ? String((event.payload as { toState?: unknown }).toState ?? "")
+                  : undefined
+            });
+          }
+        }
+      }
+    },
     ...(unitOfWork ? { unitOfWork } : {})
   });
   const contributionQueryService = createContributionQueryService({

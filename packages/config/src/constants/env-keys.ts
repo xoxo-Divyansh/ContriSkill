@@ -8,6 +8,7 @@ export const sharedEnvKeys = {
   databaseUrl: "DATABASE_URL",
   webAppName: "NEXT_PUBLIC_APP_NAME",
   webApiBaseUrl: "NEXT_PUBLIC_API_BASE_URL",
+  webRealtimeUrl: "NEXT_PUBLIC_REALTIME_URL",
   wsCorsOrigin: "WS_CORS_ORIGIN"
 } as const;
 
