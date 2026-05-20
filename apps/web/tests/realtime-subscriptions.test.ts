@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   actorSystemSubscription,
-  contributionLifecycleSubscription,
-  contributionRoomSubscription
+  contributionDetailSubscription,
+  contributionListSubscription,
+  contributionPresenceSubscription
 } from "../src/lib/realtime/subscriptions";
 
 describe("realtime subscription helpers", () => {
@@ -12,7 +13,8 @@ describe("realtime subscription helpers", () => {
       scope: { type: "actor", id: "usr_1" },
       topic: "system.actor"
     });
-    expect(contributionLifecycleSubscription("post_1").topic).toBe("contribution.lifecycle");
-    expect(contributionRoomSubscription("post_1").topic).toBe("contribution.room");
+    expect(contributionListSubscription().topic).toBe("contribution:list");
+    expect(contributionDetailSubscription("post_1").topic).toBe("contribution:post_1");
+    expect(contributionPresenceSubscription("post_1").topic).toBe("contribution:post_1");
   });
 });

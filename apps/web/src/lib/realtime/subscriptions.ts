@@ -20,3 +20,7 @@ export const contributionDetailSubscription = (contributionId: string): Realtime
     topic: `contribution:${contributionId}`
   };
 };
+
+export const contributionPresenceSubscription = (contributionId: string): RealtimeSubscription => {
+  return contributionDetailSubscription(contributionId);
+};

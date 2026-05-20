@@ -154,8 +154,8 @@ describe("realtime runtime foundation", () => {
       scope,
       payload: {
         subscription: {
-          scope,
-          topic: "contribution.lifecycle"
+          scope: { type: "contribution", id: "post_1" },
+          topic: "contribution:post_1"
         }
       }
     });
@@ -164,6 +164,10 @@ describe("realtime runtime foundation", () => {
       return event.eventName === realtimeEventNames.serverSubscriptionAccepted;
     });
     expect(accepted).toBeDefined();
+    const snapshot = transport.latestClient?.sent.find((event) => {
+      return event.eventName === realtimeEventNames.contributionPresenceSnapshot;
+    });
+    expect(snapshot).toBeDefined();
 
     const reconnectToken = (connectedEvent?.payload as { reconnectToken: string }).reconnectToken;
     transport.emitClose();

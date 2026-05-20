@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  type ContributionPresenceDeltaPayload,
+  type ContributionPresenceSnapshotPayload,
   realtimeClientEventNames,
   realtimeEventNames,
   realtimeEventVersion,
@@ -18,8 +20,9 @@ import { log } from "../observability/logger";
 
 import type { RealtimeBroadcaster } from "./broadcaster";
 import { RealtimeConnectionRegistry } from "./connection-registry";
+import { RealtimePresenceRegistry } from "./presence-registry";
 import { authorizeSubscription } from "./subscription-policy";
-import { contributionListTopic } from "./topic-helpers";
+import { contributionListTopic, extractContributionRoomId } from "./topic-helpers";
 import type { RealtimeClientHandle, RealtimeTransportLifecycle } from "./transport";
 import type { RealtimeConnectionContext, RealtimeTransportIncomingEnvelope } from "./types";
 import { validateIncomingEnvelope } from "./validation";
@@ -84,6 +87,7 @@ export const createRealtimeRuntime = ({
   sessionResolver
 }: RealtimeRuntimeDependencies): RealtimeRuntime => {
   const registry = new RealtimeConnectionRegistry();
+  const presenceRegistry = new RealtimePresenceRegistry();
   const clients = new Map<string, RealtimeClientHandle>();
   const disconnectedSubscriptionSnapshot = new Map<
     string,
@@ -129,8 +133,63 @@ export const createRealtimeRuntime = ({
     return false;
   };
 
+  const broadcastPresenceSnapshot = (
+    client: RealtimeClientHandle,
+    postId: string,
+    activeUserIds: string[]
+  ): void => {
+    client.send(
+      createEvent<ContributionPresenceSnapshotPayload>(
+        realtimeEventNames.contributionPresenceSnapshot,
+        { type: "contribution", id: postId },
+        { postId, activeUserIds },
+        { connectionId: client.id }
+      )
+    );
+  };
+
+  const broadcastPresenceJoined = (
+    postId: string,
+    userId: string,
+    activeUserIds: string[]
+  ): void => {
+    broadcast(
+      `contribution:${postId}`,
+      createEvent<ContributionPresenceDeltaPayload>(
+        realtimeEventNames.contributionPresenceJoined,
+        { type: "contribution", id: postId },
+        { postId, userId, activeUserIds }
+      )
+    );
+  };
+
+  const broadcastPresenceLeft = (postId: string, userId: string, activeUserIds: string[]): void => {
+    broadcast(
+      `contribution:${postId}`,
+      createEvent<ContributionPresenceDeltaPayload>(
+        realtimeEventNames.contributionPresenceLeft,
+        { type: "contribution", id: postId },
+        { postId, userId, activeUserIds }
+      )
+    );
+  };
+
   const disconnect = (client: RealtimeClientHandle, reason: string): void => {
     const context = registry.get(client.id);
+    if (context?.actor.userId) {
+      const disconnectedRooms = registry
+        .getSubscriptions(client.id)
+        .map((entry) => extractContributionRoomId(entry.topic))
+        .filter((roomId): roomId is string => Boolean(roomId));
+      for (const roomId of disconnectedRooms) {
+        const leaveResult = presenceRegistry.leaveRoom(client.id, roomId, context.actor.userId);
+        if (leaveResult.left) {
+          broadcastPresenceLeft(roomId, context.actor.userId, leaveResult.activeUserIds);
+        }
+      }
+      presenceRegistry.removeConnection(client.id, context.actor.userId);
+    }
+
     if (context?.actor.userId) {
       const subscriptions = registry.getSubscriptions(client.id).map((entry) => {
         return {
@@ -211,6 +270,17 @@ export const createRealtimeRuntime = ({
         { connectionId: client.id }
       )
     );
+
+    if (context.actor.userId) {
+      const roomId = extractContributionRoomId(subscription.topic);
+      if (roomId) {
+        const joinResult = presenceRegistry.joinRoom(client.id, roomId, context.actor.userId);
+        broadcastPresenceSnapshot(client, roomId, joinResult.activeUserIds);
+        if (joinResult.joined) {
+          broadcastPresenceJoined(roomId, context.actor.userId, joinResult.activeUserIds);
+        }
+      }
+    }
   };
 
   const handleUnsubscribe = (
@@ -225,6 +295,18 @@ export const createRealtimeRuntime = ({
     if (!unsubscribed) {
       return;
     }
+
+    const context = registry.get(client.id);
+    if (context?.actor.userId) {
+      const roomId = extractContributionRoomId(payload.subscription.topic);
+      if (roomId) {
+        const leaveResult = presenceRegistry.leaveRoom(client.id, roomId, context.actor.userId);
+        if (leaveResult.left) {
+          broadcastPresenceLeft(roomId, context.actor.userId, leaveResult.activeUserIds);
+        }
+      }
+    }
+
     client.send(
       createEvent(
         realtimeEventNames.serverSubscriptionAccepted,
@@ -500,6 +582,23 @@ export const createRealtimeRuntime = ({
       }
       clients.clear();
       for (const context of registry.getAllConnections()) {
+        if (context.actor.userId) {
+          const disconnectedRooms = registry
+            .getSubscriptions(context.connectionId)
+            .map((entry) => extractContributionRoomId(entry.topic))
+            .filter((roomId): roomId is string => Boolean(roomId));
+          for (const roomId of disconnectedRooms) {
+            const leaveResult = presenceRegistry.leaveRoom(
+              context.connectionId,
+              roomId,
+              context.actor.userId
+            );
+            if (leaveResult.left) {
+              broadcastPresenceLeft(roomId, context.actor.userId, leaveResult.activeUserIds);
+            }
+          }
+          presenceRegistry.removeConnection(context.connectionId, context.actor.userId);
+        }
         registry.unregister(context.connectionId);
       }
       disconnectedSubscriptionSnapshot.clear();

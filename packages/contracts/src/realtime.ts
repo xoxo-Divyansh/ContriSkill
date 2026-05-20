@@ -12,7 +12,10 @@ export const realtimeEventNames = {
   clientHeartbeatAck: "system.heartbeat.pong.v1",
   contributionCreated: "contribution.post.created.v1",
   contributionUpdated: "contribution.post.updated.v1",
-  contributionStateChanged: "contribution.post.state_changed.v1"
+  contributionStateChanged: "contribution.post.state_changed.v1",
+  contributionPresenceSnapshot: "contribution.presence.snapshot.v1",
+  contributionPresenceJoined: "contribution.presence.joined.v1",
+  contributionPresenceLeft: "contribution.presence.left.v1"
 } as const;
 
 export const realtimeServerEventNames = [
@@ -24,7 +27,10 @@ export const realtimeServerEventNames = [
   realtimeEventNames.serverHeartbeat,
   realtimeEventNames.contributionCreated,
   realtimeEventNames.contributionUpdated,
-  realtimeEventNames.contributionStateChanged
+  realtimeEventNames.contributionStateChanged,
+  realtimeEventNames.contributionPresenceSnapshot,
+  realtimeEventNames.contributionPresenceJoined,
+  realtimeEventNames.contributionPresenceLeft
 ] as const;
 
 export const realtimeClientEventNames = [
@@ -109,4 +115,15 @@ export type ClientHeartbeatAckPayload = {
 export type ContributionRealtimePayload = {
   postId: string;
   state?: string;
+};
+
+export type ContributionPresenceSnapshotPayload = {
+  postId: string;
+  activeUserIds: string[];
+};
+
+export type ContributionPresenceDeltaPayload = {
+  postId: string;
+  userId: string;
+  activeUserIds: string[];
 };

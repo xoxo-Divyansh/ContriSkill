@@ -39,14 +39,15 @@ export const createContributionRouter = (dependencies: {
             continue;
           }
           if (event.type === "post.state_changed") {
+            const toState =
+              typeof event.payload === "object" &&
+              event.payload !== null &&
+              "toState" in event.payload
+                ? String((event.payload as { toState?: unknown }).toState ?? "")
+                : undefined;
             broadcaster.publishStateChanged({
               postId: event.aggregateId,
-              state:
-                typeof event.payload === "object" &&
-                event.payload !== null &&
-                "toState" in event.payload
-                  ? String((event.payload as { toState?: unknown }).toState ?? "")
-                  : undefined
+              ...(toState ? { state: toState } : {})
             });
           }
         }

@@ -7,5 +7,6 @@ describe("realtime contracts", () => {
     expect(realtimeEventVersion).toBe(1);
     expect(realtimeEventNames.serverConnected.endsWith(".v1")).toBe(true);
     expect(realtimeEventNames.clientSubscribe.endsWith(".v1")).toBe(true);
+    expect(realtimeEventNames.contributionPresenceSnapshot.endsWith(".v1")).toBe(true);
   });
 });
