@@ -15,7 +15,10 @@ export const realtimeEventNames = {
   contributionStateChanged: "contribution.post.state_changed.v1",
   contributionPresenceSnapshot: "contribution.presence.snapshot.v1",
   contributionPresenceJoined: "contribution.presence.joined.v1",
-  contributionPresenceLeft: "contribution.presence.left.v1"
+  contributionPresenceLeft: "contribution.presence.left.v1",
+  mutationAcknowledged: "collaboration.mutation.acknowledged.v1",
+  mutationRejected: "collaboration.mutation.rejected.v1",
+  mutationConflict: "collaboration.mutation.conflict.v1"
 } as const;
 
 export const realtimeServerEventNames = [
@@ -30,7 +33,10 @@ export const realtimeServerEventNames = [
   realtimeEventNames.contributionStateChanged,
   realtimeEventNames.contributionPresenceSnapshot,
   realtimeEventNames.contributionPresenceJoined,
-  realtimeEventNames.contributionPresenceLeft
+  realtimeEventNames.contributionPresenceLeft,
+  realtimeEventNames.mutationAcknowledged,
+  realtimeEventNames.mutationRejected,
+  realtimeEventNames.mutationConflict
 ] as const;
 
 export const realtimeClientEventNames = [
@@ -126,4 +132,15 @@ export type ContributionPresenceDeltaPayload = {
   postId: string;
   userId: string;
   activeUserIds: string[];
+};
+
+export type MutationLifecycleRealtimePayload = {
+  mutationId: string;
+  targetType: string;
+  targetId: string;
+  status: "acknowledged" | "rejected" | "conflict";
+  sequence?: number;
+  appliedVersion?: number;
+  code?: string;
+  message?: string;
 };
