@@ -199,4 +199,63 @@ describe("realtime runtime foundation", () => {
     expect(rejectSpy).toHaveBeenCalledWith(401, "Unauthorized websocket connection");
     runtime.stop();
   });
+
+  it("ignores duplicate and stale incoming subscribe events", async () => {
+    const transport = new FakeTransport();
+    const runtime = createRealtimeRuntime({
+      transport,
+      sessionResolver: {
+        resolveActorByAccessToken: async () => {
+          return {
+            actorType: "authenticated",
+            role: "user",
+            sessionState: "authenticated",
+            userId: "usr_42"
+          };
+        }
+      }
+    });
+
+    runtime.start();
+    await transport.emitUpgrade("/api/v1/realtime?accessToken=tok_123");
+
+    const subscribeScope: RealtimeScope = { type: "actor", id: "usr_42" };
+    const duplicateEvent: RealtimeTransportIncomingEnvelope = {
+      eventId: "evt_duplicate",
+      eventName: realtimeEventNames.clientSubscribe,
+      version: realtimeEventVersion,
+      occurredAt: new Date().toISOString(),
+      scope: subscribeScope,
+      payload: {
+        subscription: {
+          scope: { type: "contribution", id: "post_1" },
+          topic: "contribution:post_1"
+        }
+      }
+    };
+
+    transport.emitMessage(duplicateEvent);
+    transport.emitMessage(duplicateEvent);
+
+    const staleEvent: RealtimeTransportIncomingEnvelope = {
+      eventId: "evt_stale",
+      eventName: realtimeEventNames.clientSubscribe,
+      version: realtimeEventVersion,
+      occurredAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+      scope: subscribeScope,
+      payload: {
+        subscription: {
+          scope: { type: "contribution", id: "post_2" },
+          topic: "contribution:post_2"
+        }
+      }
+    };
+    transport.emitMessage(staleEvent);
+
+    const acceptedSubscriptions = transport.latestClient?.sent.filter((event) => {
+      return event.eventName === realtimeEventNames.serverSubscriptionAccepted;
+    });
+    expect(acceptedSubscriptions).toHaveLength(1);
+    runtime.stop();
+  });
 });

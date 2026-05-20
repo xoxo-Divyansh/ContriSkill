@@ -20,6 +20,7 @@ import { log } from "../observability/logger";
 
 import type { RealtimeBroadcaster } from "./broadcaster";
 import { RealtimeConnectionRegistry } from "./connection-registry";
+import { RealtimeEventSequencer } from "./event-sequencer";
 import { RealtimePresenceRegistry } from "./presence-registry";
 import { authorizeSubscription } from "./subscription-policy";
 import { contributionListTopic, extractContributionRoomId } from "./topic-helpers";
@@ -31,6 +32,8 @@ const realtimePath = "/api/v1/realtime";
 const heartbeatIntervalMs = 15000;
 const heartbeatStaleThresholdMs = 45000;
 const reconnectTokenWindowMs = 60000;
+const incomingEventStaleThresholdMs = 5 * 60 * 1000;
+const incomingEventFutureThresholdMs = 60 * 1000;
 
 const getSessionToken = (url: URL): string | undefined => {
   const token = url.searchParams.get("accessToken");
@@ -97,6 +100,9 @@ export const createRealtimeRuntime = ({
       subscriptions: { scope: RealtimeScope; topic: RealtimeSubscription["topic"] }[];
     }
   >();
+  const inboundSeenEventIdsByConnection = new Map<string, Set<string>>();
+  const lastInboundOccurredAtByConnection = new Map<string, number>();
+  const sequencer = new RealtimeEventSequencer();
   let heartbeatTimer: NodeJS.Timeout | undefined;
 
   const onUnauthorized = (client: RealtimeClientHandle, message: string): void => {
@@ -109,6 +115,15 @@ export const createRealtimeRuntime = ({
       )
     );
     client.close(4401, "unauthenticated");
+  };
+
+  const cleanupDisconnectedSnapshots = (): void => {
+    const now = Date.now();
+    for (const [token, snapshot] of disconnectedSubscriptionSnapshot.entries()) {
+      if (snapshot.expiresAt <= now) {
+        disconnectedSubscriptionSnapshot.delete(token);
+      }
+    }
   };
 
   const isTopicScopeCompatible = (subscription: RealtimeSubscription): boolean => {
@@ -206,6 +221,8 @@ export const createRealtimeRuntime = ({
 
     registry.unregister(client.id);
     clients.delete(client.id);
+    inboundSeenEventIdsByConnection.delete(client.id);
+    lastInboundOccurredAtByConnection.delete(client.id);
     log("info", "Realtime client disconnected.", { connectionId: client.id, reason });
   };
 
@@ -350,6 +367,48 @@ export const createRealtimeRuntime = ({
     }
 
     const validated = validation.value;
+    const now = Date.now();
+    const eventTime = Date.parse(validated.occurredAt);
+    if (Number.isFinite(eventTime)) {
+      if (now - eventTime > incomingEventStaleThresholdMs) {
+        log("warn", "Realtime stale incoming event rejected.", {
+          connectionId: client.id,
+          eventId: validated.eventId,
+          eventName: validated.eventName
+        });
+        return;
+      }
+      if (eventTime - now > incomingEventFutureThresholdMs) {
+        log("warn", "Realtime future-skew incoming event rejected.", {
+          connectionId: client.id,
+          eventId: validated.eventId,
+          eventName: validated.eventName
+        });
+        return;
+      }
+      const lastOccurredAt = lastInboundOccurredAtByConnection.get(client.id) ?? 0;
+      if (eventTime < lastOccurredAt) {
+        log("warn", "Realtime out-of-order incoming event rejected.", {
+          connectionId: client.id,
+          eventId: validated.eventId,
+          eventName: validated.eventName
+        });
+        return;
+      }
+      lastInboundOccurredAtByConnection.set(client.id, eventTime);
+    }
+
+    const seenByConnection = inboundSeenEventIdsByConnection.get(client.id) ?? new Set<string>();
+    if (seenByConnection.has(validated.eventId)) {
+      log("debug", "Realtime duplicate incoming event ignored.", {
+        connectionId: client.id,
+        eventId: validated.eventId
+      });
+      return;
+    }
+    seenByConnection.add(validated.eventId);
+    inboundSeenEventIdsByConnection.set(client.id, seenByConnection);
+
     if (!realtimeClientEventNames.includes(validated.eventName as never)) {
       client.send(
         createEvent(
@@ -392,6 +451,7 @@ export const createRealtimeRuntime = ({
 
   const sendHeartbeat = (): void => {
     const now = Date.now();
+    cleanupDisconnectedSnapshots();
     for (const context of registry.getAllConnections()) {
       const client = clients.get(context.connectionId);
       if (!client) {
@@ -425,6 +485,7 @@ export const createRealtimeRuntime = ({
   };
 
   transport.onUpgrade(async (event) => {
+    cleanupDisconnectedSnapshots();
     const requestUrl = new URL(event.request.url ?? "/", "http://localhost");
     const token = getSessionToken(requestUrl);
     const reconnectToken = getReconnectToken(requestUrl);
@@ -455,6 +516,7 @@ export const createRealtimeRuntime = ({
 
     clients.set(connectionId, client);
     registry.register(connectionContext);
+    inboundSeenEventIdsByConnection.set(connectionId, new Set<string>());
 
     client.send(
       createEvent(
@@ -522,6 +584,12 @@ export const createRealtimeRuntime = ({
     topic: RealtimeSubscriptionTopic,
     envelope: RealtimeEventEnvelope<unknown>
   ): void => {
+    const sequence = sequencer.next(topic);
+    const dispatchEnvelope: RealtimeEventEnvelope<unknown> = {
+      ...envelope,
+      sequence,
+      cursor: `${topic}:${sequence}`
+    };
     const targets = registry.getTargetsByTopic(topic);
     for (const target of targets) {
       const client = clients.get(target.connectionId);
@@ -529,7 +597,7 @@ export const createRealtimeRuntime = ({
         continue;
       }
       try {
-        client.send(envelope);
+        client.send(dispatchEnvelope);
       } catch (error) {
         log("warn", "Realtime broadcast dispatch failed.", {
           connectionId: target.connectionId,
@@ -541,7 +609,8 @@ export const createRealtimeRuntime = ({
     log("debug", "Realtime broadcast dispatched.", {
       topic,
       targetCount: targets.length,
-      eventName: envelope.eventName
+      eventName: dispatchEnvelope.eventName,
+      sequence
     });
   };
 
@@ -602,6 +671,9 @@ export const createRealtimeRuntime = ({
         registry.unregister(context.connectionId);
       }
       disconnectedSubscriptionSnapshot.clear();
+      inboundSeenEventIdsByConnection.clear();
+      lastInboundOccurredAtByConnection.clear();
+      sequencer.reset();
       log("info", "Realtime runtime stopped.", { path: realtimePath });
     }
   };

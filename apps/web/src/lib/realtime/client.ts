@@ -18,6 +18,8 @@ import {
   realtimeServerEventNames
 } from "@contriskill/contracts";
 
+import { createRealtimeOrderingState, shouldApplyRealtimeEvent } from "./event-ordering";
+
 const reconnectDelayMs = 2000;
 const createEventId = (): string => {
   if (
@@ -68,6 +70,7 @@ export const createRealtimeClient = (options: RealtimeClientOptions): RealtimeCl
   let manuallyClosed = false;
   let reconnectToken: string | undefined;
   const seenEventIds = new Set<string>();
+  const orderingState = createRealtimeOrderingState();
 
   const setState = (nextState: RealtimeConnectionState): void => {
     state = nextState;
@@ -166,6 +169,7 @@ export const createRealtimeClient = (options: RealtimeClientOptions): RealtimeCl
         return;
       }
       if (seenEventIds.has(parsed.eventId)) {
+        options.onError?.(`Realtime duplicate event ignored: ${parsed.eventId}.`);
         return;
       }
       seenEventIds.add(parsed.eventId);
@@ -182,6 +186,17 @@ export const createRealtimeClient = (options: RealtimeClientOptions): RealtimeCl
       if (parsed.eventName === realtimeEventNames.serverError) {
         const payload = parsed.payload as ServerErrorPayload;
         options.onError?.(payload.message);
+      }
+      const orderingDecision = shouldApplyRealtimeEvent(parsed, orderingState);
+      if (!orderingDecision.apply) {
+        if (orderingDecision.reason === "out_of_order_sequence") {
+          options.onError?.("Realtime out-of-order event ignored.");
+        } else if (orderingDecision.reason === "stale_event") {
+          options.onError?.("Realtime stale event ignored.");
+        } else {
+          options.onError?.("Realtime stale timestamp event ignored.");
+        }
+        return;
       }
       options.onEvent?.(parsed);
     };
@@ -215,6 +230,9 @@ export const createRealtimeClient = (options: RealtimeClientOptions): RealtimeCl
       socket = undefined;
       setState("disconnected");
       reconnectToken = undefined;
+      seenEventIds.clear();
+      orderingState.lastOccurredAtByTopic.clear();
+      orderingState.lastSequenceByTopic.clear();
     },
     subscribe: (subscription) => {
       const exists = subscriptions.some((entry) => {
