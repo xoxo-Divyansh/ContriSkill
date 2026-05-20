@@ -23,6 +23,7 @@ describe("pending mutation queue", () => {
   it("enqueues and applies acknowledgement state", () => {
     const queue = createPendingMutationQueue();
     queue.enqueue(envelope);
+    queue.markOptimisticApplied("mut_1");
 
     const updated = queue.applyResult({
       version: 1,
@@ -42,8 +43,8 @@ describe("pending mutation queue", () => {
   it("tracks retryable state and replay candidates", () => {
     const queue = createPendingMutationQueue();
     queue.enqueue(envelope);
-    const retryable = queue.markRetryableError("mut_1");
-    expect(retryable?.status).toBe("retryable_error");
+    const retryable = queue.markRetrying("mut_1");
+    expect(retryable?.status).toBe("retrying");
     expect(shouldRetryMutation(retryable!)).toBe(true);
     expect(selectReplayablePendingMutations(queue.list())).toHaveLength(1);
   });

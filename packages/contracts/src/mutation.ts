@@ -69,9 +69,15 @@ export type CollaborativeMutationConflict = {
   version: typeof collaborativeMutationVersion;
   status: "conflict";
   mutationId: string;
+  targetType: CollaborativeMutationTargetType;
+  targetId: string;
   code: CollaborativeMutationConflictCode;
   message: string;
   conflictAt: string;
+  conflictDetails?: {
+    baseVersion?: number;
+    serverVersion?: number;
+  };
   serverVersion?: number;
 };
 

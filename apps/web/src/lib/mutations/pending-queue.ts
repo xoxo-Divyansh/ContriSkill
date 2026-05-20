@@ -5,22 +5,31 @@ import type {
 
 export type PendingMutationStatus =
   | "pending"
+  | "optimistic_applied"
   | "acknowledged"
   | "rejected"
-  | "conflict"
-  | "retryable_error";
+  | "conflicted"
+  | "rolled_back"
+  | "retrying"
+  | "failed";
 
 export type PendingMutationEntry = {
   envelope: CollaborativeMutationEnvelope;
   status: PendingMutationStatus;
   attempts: number;
   lastUpdatedAt: string;
+  optimisticAppliedAt?: string;
+  rolledBackAt?: string;
+  rollbackReason?: string;
   result?: CollaborativeMutationResultEnvelope;
 };
 
 export type PendingMutationQueue = {
   enqueue: (envelope: CollaborativeMutationEnvelope) => PendingMutationEntry;
-  markRetryableError: (mutationId: string) => PendingMutationEntry | undefined;
+  markOptimisticApplied: (mutationId: string) => PendingMutationEntry | undefined;
+  markRetrying: (mutationId: string) => PendingMutationEntry | undefined;
+  markFailed: (mutationId: string, reason?: string) => PendingMutationEntry | undefined;
+  markRolledBack: (mutationId: string, reason?: string) => PendingMutationEntry | undefined;
   applyResult: (result: CollaborativeMutationResultEnvelope) => PendingMutationEntry | undefined;
   remove: (mutationId: string) => boolean;
   get: (mutationId: string) => PendingMutationEntry | undefined;
@@ -48,15 +57,58 @@ export const createPendingMutationQueue = (): PendingMutationQueue => {
       entries.set(envelope.mutationId, created);
       return created;
     },
-    markRetryableError: (mutationId) => {
+    markOptimisticApplied: (mutationId) => {
       const existing = entries.get(mutationId);
       if (!existing) {
         return undefined;
       }
       const updated: PendingMutationEntry = {
         ...existing,
-        status: "retryable_error",
+        status: "optimistic_applied",
+        optimisticAppliedAt: nowIso(),
+        lastUpdatedAt: nowIso()
+      };
+      entries.set(mutationId, updated);
+      return updated;
+    },
+    markRetrying: (mutationId) => {
+      const existing = entries.get(mutationId);
+      if (!existing) {
+        return undefined;
+      }
+      const updated: PendingMutationEntry = {
+        ...existing,
+        status: "retrying",
         attempts: existing.attempts + 1,
+        lastUpdatedAt: nowIso()
+      };
+      entries.set(mutationId, updated);
+      return updated;
+    },
+    markFailed: (mutationId, reason) => {
+      const existing = entries.get(mutationId);
+      if (!existing) {
+        return undefined;
+      }
+      const updated: PendingMutationEntry = {
+        ...existing,
+        status: "failed",
+        ...(reason ? { rollbackReason: reason } : {}),
+        lastUpdatedAt: nowIso()
+      };
+      entries.set(mutationId, updated);
+      return updated;
+    },
+    markRolledBack: (mutationId, reason) => {
+      const existing = entries.get(mutationId);
+      if (!existing) {
+        return undefined;
+      }
+      const updated: PendingMutationEntry = {
+        ...existing,
+        status: "rolled_back",
+        rolledBackAt: nowIso(),
+        ...(reason ? { rollbackReason: reason } : {}),
         lastUpdatedAt: nowIso()
       };
       entries.set(mutationId, updated);
@@ -69,7 +121,7 @@ export const createPendingMutationQueue = (): PendingMutationQueue => {
       }
       const updated: PendingMutationEntry = {
         ...existing,
-        status: result.status,
+        status: result.status === "conflict" ? "conflicted" : result.status,
         result,
         lastUpdatedAt: nowIso()
       };

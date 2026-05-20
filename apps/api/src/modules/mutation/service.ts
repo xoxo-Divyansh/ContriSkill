@@ -50,7 +50,7 @@ const toRejected = (
 };
 
 const toConflict = (
-  mutationId: string,
+  envelope: CollaborativeMutationEnvelope,
   code: CollaborativeMutationConflict["code"],
   message: string,
   serverVersion?: number
@@ -58,10 +58,16 @@ const toConflict = (
   return {
     version: collaborativeMutationVersion,
     status: "conflict",
-    mutationId,
+    mutationId: envelope.mutationId,
+    targetType: envelope.targetType,
+    targetId: envelope.targetId,
     code,
     message,
     conflictAt: nowIso(),
+    conflictDetails: {
+      ...(envelope.baseVersion !== undefined ? { baseVersion: envelope.baseVersion } : {}),
+      ...(serverVersion !== undefined ? { serverVersion } : {})
+    },
     ...(serverVersion !== undefined ? { serverVersion } : {})
   };
 };
@@ -137,7 +143,7 @@ export const createMutationIntakeService = (): MutationIntakeService => {
 
       if (envelope.baseVersion !== undefined && envelope.baseVersion < currentVersion) {
         const conflict = toConflict(
-          envelope.mutationId,
+          envelope,
           "STALE_BASE",
           "Mutation baseVersion is stale for target.",
           currentVersion

@@ -136,6 +136,7 @@ export type ContributionPresenceDeltaPayload = {
 
 export type MutationLifecycleRealtimePayload = {
   mutationId: string;
+  actorId?: string;
   targetType: string;
   targetId: string;
   status: "acknowledged" | "rejected" | "conflict";
@@ -143,4 +144,5 @@ export type MutationLifecycleRealtimePayload = {
   appliedVersion?: number;
   code?: string;
   message?: string;
+  acknowledgedAt?: string;
 };
