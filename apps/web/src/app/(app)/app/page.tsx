@@ -9,17 +9,18 @@ export default function ProtectedAppHomePage() {
   return (
     <AppShell
       title="Workspace Overview"
-      subtitle="Stable app shell for auth and contribution flows."
+      subtitle="Your collaborative control surface for contribution work."
     >
-      <Stack gap="md">
-        <Card variant="subtle">
+      <Stack gap="sm">
+        <Card variant="outlined">
           <CardHeader>
             <Text variant="subtitle">Contribution Workspace</Text>
           </CardHeader>
           <CardBody>
             <Stack gap="xs">
               <Text tone="muted">
-                Create and manage contributions from the dedicated contribution routes.
+                Create requests, manage collaboration applications, and monitor synchronization
+                state from dedicated workspace routes.
               </Text>
               <Link href="/app/contributions">Go to Contributions</Link>
             </Stack>

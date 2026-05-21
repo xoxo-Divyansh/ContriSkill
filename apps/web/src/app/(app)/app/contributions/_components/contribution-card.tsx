@@ -11,7 +11,7 @@ export type ContributionCardProps = {
 
 export const ContributionCard = ({ post }: ContributionCardProps) => {
   return (
-    <Card variant="subtle">
+    <Card variant="outlined">
       <CardHeader>
         <Text variant="subtitle">
           <Link href={`/app/contributions/${post.id}`}>{post.title}</Link>
@@ -24,6 +24,9 @@ export const ContributionCard = ({ post }: ContributionCardProps) => {
             {post.type} • {post.difficulty} • {post.state}
           </Text>
           <Text variant="caption">Credits: {post.creditOffer}</Text>
+          <Text variant="caption" tone="muted">
+            Open workspace: /app/contributions/{post.id}
+          </Text>
         </Stack>
       </CardBody>
     </Card>

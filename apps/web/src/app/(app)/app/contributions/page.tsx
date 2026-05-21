@@ -1,7 +1,7 @@
 "use client";
 
 import type { ContributionDifficulty, ContributionType } from "@contriskill/domain";
-import { Button, Input, Label, Stack, Text } from "@contriskill/ui";
+import { Button, Card, CardBody, CardHeader, Input, Label, Stack, Text } from "@contriskill/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ApiClientError } from "../../../../lib/api/types";
@@ -48,6 +48,7 @@ export default function ContributionsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | undefined>();
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
 
@@ -92,7 +93,14 @@ export default function ContributionsPage() {
         ) {
           return;
         }
-        void loadContributions();
+        void (async () => {
+          setIsRefreshing(true);
+          try {
+            await loadContributions();
+          } finally {
+            setIsRefreshing(false);
+          }
+        })();
       },
       [loadContributions]
     )
@@ -159,103 +167,126 @@ export default function ContributionsPage() {
   };
 
   return (
-    <AppShell title="Contributions" subtitle="Discover and create contribution posts.">
+    <AppShell
+      title="Contributions"
+      subtitle="Create, discover, and coordinate contribution workspaces."
+    >
       <Stack gap="lg">
-        <Stack gap="sm">
-          <Text variant="subtitle">Create Contribution</Text>
-          <Stack gap="xs">
-            <Label htmlFor="contribution-title">Title</Label>
-            <Input
-              id="contribution-title"
-              value={title}
-              onChange={(event) => setTitle(event.currentTarget.value)}
-            />
-          </Stack>
-          <Stack gap="xs">
-            <Label htmlFor="contribution-description">Description</Label>
-            <Input
-              id="contribution-description"
-              value={description}
-              onChange={(event) => setDescription(event.currentTarget.value)}
-            />
-          </Stack>
-          <Stack direction="row" gap="sm">
-            <Stack gap="xs">
-              <Label htmlFor="contribution-type">Type</Label>
-              <select
-                id="contribution-type"
-                name="contribution-type"
-                aria-label="Contribution type"
-                value={type}
-                onChange={(event) => setType(event.currentTarget.value as ContributionType)}
+        <Card variant="elevated">
+          <CardHeader>
+            <Text variant="subtitle">Create Contribution</Text>
+            <Text variant="caption" tone="muted">
+              Start a new contribution request for the workspace.
+            </Text>
+          </CardHeader>
+          <CardBody>
+            <Stack gap="sm">
+              <Stack gap="xs">
+                <Label htmlFor="contribution-title">Title</Label>
+                <Input
+                  id="contribution-title"
+                  value={title}
+                  onChange={(event) => setTitle(event.currentTarget.value)}
+                  placeholder="Design a profile verification workflow"
+                />
+              </Stack>
+              <Stack gap="xs">
+                <Label htmlFor="contribution-description">Description</Label>
+                <Input
+                  id="contribution-description"
+                  value={description}
+                  onChange={(event) => setDescription(event.currentTarget.value)}
+                  placeholder="Describe the exact collaboration need"
+                />
+              </Stack>
+              <div className="cs-form-grid">
+                <Stack gap="xs">
+                  <Label htmlFor="contribution-type">Type</Label>
+                  <select
+                    id="contribution-type"
+                    name="contribution-type"
+                    className="cs-input-like"
+                    aria-label="Contribution type"
+                    value={type}
+                    onChange={(event) => setType(event.currentTarget.value as ContributionType)}
+                  >
+                    {contributionTypes.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </Stack>
+                <Stack gap="xs">
+                  <Label htmlFor="contribution-difficulty">Difficulty</Label>
+                  <select
+                    id="contribution-difficulty"
+                    name="contribution-difficulty"
+                    className="cs-input-like"
+                    aria-label="Contribution difficulty"
+                    value={difficulty}
+                    onChange={(event) =>
+                      setDifficulty(event.currentTarget.value as ContributionDifficulty)
+                    }
+                  >
+                    {contributionDifficulties.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </Stack>
+                <Stack gap="xs">
+                  <Label htmlFor="contribution-credit">Credit Offer</Label>
+                  <Input
+                    id="contribution-credit"
+                    inputMode="numeric"
+                    value={creditOffer}
+                    onChange={(event) => setCreditOffer(event.currentTarget.value)}
+                  />
+                </Stack>
+              </div>
+              <Button
+                onClick={() => void onCreateContribution()}
+                loading={isSubmitting}
+                disabled={!canSubmit}
               >
-                {contributionTypes.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
+                Create Contribution
+              </Button>
             </Stack>
-            <Stack gap="xs">
-              <Label htmlFor="contribution-difficulty">Difficulty</Label>
-              <select
-                id="contribution-difficulty"
-                name="contribution-difficulty"
-                aria-label="Contribution difficulty"
-                value={difficulty}
-                onChange={(event) =>
-                  setDifficulty(event.currentTarget.value as ContributionDifficulty)
-                }
-              >
-                {contributionDifficulties.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </Stack>
-            <Stack gap="xs">
-              <Label htmlFor="contribution-credit">Credit Offer</Label>
-              <Input
-                id="contribution-credit"
-                inputMode="numeric"
-                value={creditOffer}
-                onChange={(event) => setCreditOffer(event.currentTarget.value)}
-              />
-            </Stack>
-          </Stack>
-          <Button
-            onClick={() => void onCreateContribution()}
-            loading={isSubmitting}
-            disabled={!canSubmit}
-          >
-            Create Contribution
-          </Button>
-        </Stack>
+          </CardBody>
+        </Card>
 
-        <Stack gap="sm">
-          <Text variant="subtitle">Browse Contributions</Text>
-          <Stack direction="row" gap="sm">
-            <Input
-              aria-label="Filter by post state"
-              placeholder="state (optional)"
-              value={stateFilter}
-              onChange={(event) => setStateFilter(event.currentTarget.value)}
-            />
-            <Input
-              aria-label="Filter by contribution type"
-              placeholder="type (optional)"
-              value={typeFilter}
-              onChange={(event) => setTypeFilter(event.currentTarget.value)}
-            />
-            <Input
-              aria-label="Filter by difficulty"
-              placeholder="difficulty (optional)"
-              value={difficultyFilter}
-              onChange={(event) => setDifficultyFilter(event.currentTarget.value)}
-            />
-          </Stack>
-        </Stack>
+        <Card variant="outlined">
+          <CardHeader>
+            <Text variant="subtitle">Browse Contributions</Text>
+            <Text variant="caption" tone="muted">
+              Filter open work and discover collaboration opportunities.
+            </Text>
+          </CardHeader>
+          <CardBody>
+            <div className="cs-form-grid">
+              <Input
+                aria-label="Filter by post state"
+                placeholder="state (optional)"
+                value={stateFilter}
+                onChange={(event) => setStateFilter(event.currentTarget.value)}
+              />
+              <Input
+                aria-label="Filter by contribution type"
+                placeholder="type (optional)"
+                value={typeFilter}
+                onChange={(event) => setTypeFilter(event.currentTarget.value)}
+              />
+              <Input
+                aria-label="Filter by difficulty"
+                placeholder="difficulty (optional)"
+                value={difficultyFilter}
+                onChange={(event) => setDifficultyFilter(event.currentTarget.value)}
+              />
+            </div>
+          </CardBody>
+        </Card>
 
         {errorMessage ? (
           <Text variant="caption" tone="danger">
@@ -267,11 +298,22 @@ export default function ContributionsPage() {
             {statusMessage}
           </Text>
         ) : null}
+        {isRefreshing ? (
+          <Text variant="caption" tone="warning">
+            Syncing latest contribution updates...
+          </Text>
+        ) : null}
 
         {isLoading ? (
           <Text tone="muted">Loading contributions...</Text>
         ) : posts.length === 0 ? (
-          <Text tone="muted">No contributions found for the current filters.</Text>
+          <Card variant="subtle">
+            <CardBody>
+              <Text tone="muted">
+                No contributions found for the current filters. Try adjusting filters or create one.
+              </Text>
+            </CardBody>
+          </Card>
         ) : (
           <Stack gap="sm">
             {posts.map((post: (typeof posts)[number]) => (
