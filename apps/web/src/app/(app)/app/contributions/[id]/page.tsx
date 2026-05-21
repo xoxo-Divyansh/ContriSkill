@@ -1,6 +1,7 @@
 "use client";
 
 import { Button, Input, Label, Stack, Text } from "@contriskill/ui";
+import { Card, CardBody, CardHeader } from "@contriskill/ui";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -15,8 +16,10 @@ import {
   contributionProjectionSubscription
 } from "../../../../../lib/realtime/subscriptions";
 import { useContributionWorkspaceSessions } from "../../../../../lib/realtime/workspace-sessions";
+import { formatSyncSummary, resolveRealtimeTone } from "../../../../../lib/ui/workspace-status";
 import { useApiClient } from "../../../../../providers/api-client-provider";
 import {
+  useRealtime,
   useRealtimeEvent,
   useRealtimeSubscription
 } from "../../../../../providers/realtime-provider";
@@ -41,6 +44,7 @@ const normalizeApiErrorMessage = (error: unknown, fallback: string): string => {
 export default function ContributionDetailPage({ params }: ContributionDetailPageProps) {
   const { contributionClient, draftClient, projectionClient } = useApiClient();
   const { session } = useSession();
+  const realtime = useRealtime();
   const presence = useContributionPresence(params.id);
   const workspaceSessions = useContributionWorkspaceSessions(params.id);
   const draftStore = useMemo(() => createDraftSyncStore(), []);
@@ -65,6 +69,8 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
   const [projectionSyncError, setProjectionSyncError] = useState<string | undefined>();
   const [isProjectionSyncing, setIsProjectionSyncing] = useState(false);
   const [projectionVersionLabel, setProjectionVersionLabel] = useState("v0");
+  const [draftPendingCount, setDraftPendingCount] = useState(0);
+  const [projectionPendingCount, setProjectionPendingCount] = useState(0);
 
   const loadContributionDetail = useCallback(async () => {
     setIsLoading(true);
@@ -117,6 +123,21 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
     }
   }, [projectionClient, projectionId, projectionStore, session.accessToken]);
 
+  const refreshSyncCounters = useCallback(() => {
+    const draftPending = draftStore
+      .getState()
+      .pendingPatches.filter((entry) =>
+        ["pending", "optimistic_applied", "retrying"].includes(entry.status)
+      ).length;
+    const projectionPending = projectionStore
+      .getState()
+      .pendingUpdates.filter((entry) =>
+        ["pending", "optimistic_applied", "retrying"].includes(entry.status)
+      ).length;
+    setDraftPendingCount(draftPending);
+    setProjectionPendingCount(projectionPending);
+  }, [draftStore, projectionStore]);
+
   useRealtimeSubscription(contributionDetailSubscription(params.id));
   useRealtimeSubscription(contributionDraftSubscription(params.id));
   useRealtimeSubscription(contributionProjectionSubscription(params.id));
@@ -159,6 +180,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
               setDraftVersionLabel(`v${state.remoteDraft.draftVersion}`);
             }
             setDraftSyncStatus(`Draft lifecycle event processed: ${payload.status}.`);
+            refreshSyncCounters();
           }
 
           if (
@@ -190,6 +212,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
               setProjectionVersionLabel(`v${state.remoteProjection.projectionVersion}`);
             }
             setProjectionSyncStatus(`Projection lifecycle event processed: ${payload.status}.`);
+            refreshSyncCounters();
           }
 
           return;
@@ -202,7 +225,8 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
         loadDraftSnapshot,
         loadProjectionSnapshot,
         params.id,
-        projectionStore
+        projectionStore,
+        refreshSyncCounters
       ]
     )
   );
@@ -211,7 +235,8 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
     void loadContributionDetail();
     void loadDraftSnapshot();
     void loadProjectionSnapshot();
-  }, [loadContributionDetail, loadDraftSnapshot, loadProjectionSnapshot]);
+    refreshSyncCounters();
+  }, [loadContributionDetail, loadDraftSnapshot, loadProjectionSnapshot, refreshSyncCounters]);
 
   const onSyncDraft = async () => {
     if (!session.userId) {
@@ -240,6 +265,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
     };
 
     draftStore.enqueueOptimisticPatch(nextEnvelope);
+    refreshSyncCounters();
     try {
       const result = await draftClient.syncPatch(nextEnvelope, session.accessToken);
       draftStore.applyPatchResult(result);
@@ -251,6 +277,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
       draftStore.markPatchRetrying(nextEnvelope.patchId);
       setDraftSyncError(normalizeApiErrorMessage(error, "Draft sync failed."));
     } finally {
+      refreshSyncCounters();
       setIsDraftSyncing(false);
     }
   };
@@ -304,6 +331,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
     };
 
     projectionStore.enqueueOptimisticUpdate(nextEnvelope);
+    refreshSyncCounters();
     try {
       const result = await projectionClient.syncUpdate(nextEnvelope, session.accessToken);
       projectionStore.applyUpdateResult(result);
@@ -315,6 +343,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
       projectionStore.markUpdateRetrying(nextEnvelope.updateId);
       setProjectionSyncError(normalizeApiErrorMessage(error, "Projection sync failed."));
     } finally {
+      refreshSyncCounters();
       setIsProjectionSyncing(false);
     }
   };
@@ -346,142 +375,196 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
   return (
     <AppShell
       title="Contribution Detail"
-      subtitle="Read contribution detail and test application flow."
+      subtitle="Coordinate applications and collaboration state for this contribution."
     >
       <Stack gap="lg">
         {isLoading ? (
           <Text tone="muted">Loading contribution detail...</Text>
         ) : post ? (
-          <Stack gap="xs">
-            <Text variant="subtitle">{post.title}</Text>
-            <Text tone="muted">{post.description}</Text>
-            <Text variant="caption">
-              {post.id} - {post.type} - {post.difficulty} - {post.state}
-            </Text>
-            <Text variant="caption" tone="muted">
-              Active collaborators: {presence.activeCount}
-            </Text>
-            <Text variant="caption" tone="muted">
-              Workspace sessions: {workspaceSessions.activeCount}
-            </Text>
-            {workspaceSessions.workspaceId ? (
-              <Text variant="caption" tone="muted">
-                Workspace: {workspaceSessions.workspaceId}
-              </Text>
-            ) : null}
-            {workspaceSessions.participants.length > 0 ? (
-              <Text variant="caption" tone="muted">
-                Participants:{" "}
-                {workspaceSessions.participants
-                  .map((participant) => `${participant.actorId}(${participant.sessionState})`)
-                  .join(", ")}
-              </Text>
-            ) : null}
-          </Stack>
+          <Card variant="elevated">
+            <CardHeader>
+              <Text variant="subtitle">{post.title}</Text>
+              <Text tone="muted">{post.description}</Text>
+            </CardHeader>
+            <CardBody>
+              <Stack gap="xs">
+                <Text variant="caption">
+                  {post.id} • {post.type} • {post.difficulty} • {post.state}
+                </Text>
+                <Text variant="caption" tone="muted">
+                  Active collaborators: {presence.activeCount}
+                </Text>
+                <Text variant="caption" tone={resolveRealtimeTone(realtime.state)}>
+                  Realtime state: {realtime.state}
+                </Text>
+                <Text variant="caption" tone="muted">
+                  Workspace sessions: {workspaceSessions.activeCount}
+                </Text>
+                {workspaceSessions.workspaceId ? (
+                  <Text variant="caption" tone="muted">
+                    Workspace: {workspaceSessions.workspaceId}
+                  </Text>
+                ) : null}
+                {workspaceSessions.participants.length > 0 ? (
+                  <Text variant="caption" tone="muted">
+                    Participants:{" "}
+                    {workspaceSessions.participants
+                      .map((participant) => `${participant.actorId} (${participant.sessionState})`)
+                      .join(", ")}
+                  </Text>
+                ) : (
+                  <Text variant="caption" tone="muted">
+                    No active participant sessions yet.
+                  </Text>
+                )}
+                <Text variant="caption" tone="muted">
+                  {formatSyncSummary({
+                    draftPending: draftPendingCount,
+                    projectionPending: projectionPendingCount
+                  })}
+                </Text>
+              </Stack>
+            </CardBody>
+          </Card>
         ) : (
-          <Stack gap="xs">
-            <Text tone="muted">Contribution not found.</Text>
-            <Link href="/app/contributions">Back to Contributions</Link>
-          </Stack>
+          <Card variant="subtle">
+            <CardBody>
+              <Stack gap="xs">
+                <Text tone="muted">Contribution not found.</Text>
+                <Link href="/app/contributions">Back to Contributions</Link>
+              </Stack>
+            </CardBody>
+          </Card>
         )}
 
-        <Stack gap="sm">
-          <Text variant="subtitle">Application Actions</Text>
-          <Stack gap="xs">
-            <Label htmlFor="application-message">Application Message</Label>
-            <Input
-              id="application-message"
-              value={message}
-              onChange={(event) => setMessage(event.currentTarget.value)}
-            />
-          </Stack>
-          <Button
-            variant="secondary"
-            onClick={() => void onSubmitApplication()}
-            loading={isSubmitting}
-            disabled={!message}
-          >
-            Submit Application
-          </Button>
-          <Stack gap="xs">
-            <Label htmlFor="application-id">Application ID</Label>
-            <Input
-              id="application-id"
-              value={applicationId}
-              onChange={(event) => setApplicationId(event.currentTarget.value)}
-              placeholder="Paste or use submitted application id"
-            />
-          </Stack>
-          <Button
-            variant="ghost"
-            onClick={() => void onAcceptApplication()}
-            disabled={!applicationId || isSubmitting}
-          >
-            Accept Application
-          </Button>
-        </Stack>
+        <div className="cs-panel-grid">
+          <Card variant="outlined">
+            <CardHeader>
+              <Text variant="subtitle">Application Actions</Text>
+              <Text variant="caption" tone="muted">
+                Submit and accept collaboration applications.
+              </Text>
+            </CardHeader>
+            <CardBody>
+              <Stack gap="sm">
+                <Stack gap="xs">
+                  <Label htmlFor="application-message">Application Message</Label>
+                  <Input
+                    id="application-message"
+                    value={message}
+                    onChange={(event) => setMessage(event.currentTarget.value)}
+                  />
+                </Stack>
+                <Button
+                  variant="secondary"
+                  onClick={() => void onSubmitApplication()}
+                  loading={isSubmitting}
+                  disabled={!message}
+                >
+                  Submit Application
+                </Button>
+                <Stack gap="xs">
+                  <Label htmlFor="application-id">Application ID</Label>
+                  <Input
+                    id="application-id"
+                    value={applicationId}
+                    onChange={(event) => setApplicationId(event.currentTarget.value)}
+                    placeholder="Paste or use submitted application id"
+                  />
+                </Stack>
+                <Button
+                  variant="ghost"
+                  onClick={() => void onAcceptApplication()}
+                  disabled={!applicationId || isSubmitting}
+                >
+                  Accept Application
+                </Button>
+              </Stack>
+            </CardBody>
+          </Card>
 
-        <Stack gap="sm">
-          <Text variant="subtitle">Shared Draft Synchronization</Text>
-          <Text variant="caption" tone="muted">
-            Draft shell state {draftVersionLabel}
-          </Text>
-          <Stack gap="xs">
-            <Label htmlFor="draft-note">Draft Note</Label>
-            <Input
-              id="draft-note"
-              value={draftNote}
-              onChange={(event) => setDraftNote(event.currentTarget.value)}
-              placeholder="Add draft note for contribution coordination"
-            />
-          </Stack>
-          <Button variant="secondary" onClick={() => void onSyncDraft()} loading={isDraftSyncing}>
-            Sync Draft Patch
-          </Button>
-          {draftSyncStatus ? (
-            <Text variant="caption" tone="success">
-              {draftSyncStatus}
-            </Text>
-          ) : null}
-          {draftSyncError ? (
-            <Text variant="caption" tone="danger">
-              {draftSyncError}
-            </Text>
-          ) : null}
-        </Stack>
+          <Card variant="outlined">
+            <CardHeader>
+              <Text variant="subtitle">Draft + Projection Coordination</Text>
+              <Text variant="caption" tone="muted">
+                Lightweight sync surfaces for collaboration state.
+              </Text>
+            </CardHeader>
+            <CardBody>
+              <Stack gap="sm">
+                <Stack gap="xs">
+                  <Text variant="label">Draft sync ({draftVersionLabel})</Text>
+                  <Label htmlFor="draft-note">Draft Note</Label>
+                  <Input
+                    id="draft-note"
+                    value={draftNote}
+                    onChange={(event) => setDraftNote(event.currentTarget.value)}
+                    placeholder="Add draft note for contribution coordination"
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={() => void onSyncDraft()}
+                    loading={isDraftSyncing}
+                  >
+                    Sync Draft Patch
+                  </Button>
+                  {draftSyncStatus ? (
+                    <Text variant="caption" tone="success">
+                      {draftSyncStatus}
+                    </Text>
+                  ) : null}
+                  {draftSyncError ? (
+                    <Text variant="caption" tone="danger">
+                      {draftSyncError}
+                    </Text>
+                  ) : null}
+                </Stack>
 
-        <Stack gap="sm">
-          <Text variant="subtitle">Shared Workspace Projection</Text>
-          <Text variant="caption" tone="muted">
-            Projection shell state {projectionVersionLabel}
-          </Text>
-          <Stack gap="xs">
-            <Label htmlFor="projection-note">Projection Note</Label>
-            <Input
-              id="projection-note"
-              value={projectionNote}
-              onChange={(event) => setProjectionNote(event.currentTarget.value)}
-              placeholder="Project workspace state for collaborators"
-            />
-          </Stack>
-          <Button
-            variant="secondary"
-            onClick={() => void onSyncProjection()}
-            loading={isProjectionSyncing}
-          >
-            Sync Projection Update
-          </Button>
-          {projectionSyncStatus ? (
-            <Text variant="caption" tone="success">
-              {projectionSyncStatus}
-            </Text>
-          ) : null}
-          {projectionSyncError ? (
-            <Text variant="caption" tone="danger">
-              {projectionSyncError}
-            </Text>
-          ) : null}
-        </Stack>
+                <Stack gap="xs">
+                  <Text variant="label">Projection sync ({projectionVersionLabel})</Text>
+                  <Label htmlFor="projection-note">Projection Note</Label>
+                  <Input
+                    id="projection-note"
+                    value={projectionNote}
+                    onChange={(event) => setProjectionNote(event.currentTarget.value)}
+                    placeholder="Project workspace state for collaborators"
+                  />
+                  <Button
+                    variant="secondary"
+                    onClick={() => void onSyncProjection()}
+                    loading={isProjectionSyncing}
+                  >
+                    Sync Projection Update
+                  </Button>
+                  {projectionSyncStatus ? (
+                    <Text variant="caption" tone="success">
+                      {projectionSyncStatus}
+                    </Text>
+                  ) : null}
+                  {projectionSyncError ? (
+                    <Text variant="caption" tone="danger">
+                      {projectionSyncError}
+                    </Text>
+                  ) : null}
+                </Stack>
+              </Stack>
+            </CardBody>
+          </Card>
+        </div>
+
+        {workspaceSessions.workspaceId ? (
+          <Card variant="subtle">
+            <CardHeader>
+              <Text variant="subtitle">Participant Session Awareness</Text>
+            </CardHeader>
+            <CardBody>
+              <Text variant="caption" tone="muted">
+                Workspace: {workspaceSessions.workspaceId} | Active sessions:{" "}
+                {workspaceSessions.activeCount}
+              </Text>
+            </CardBody>
+          </Card>
+        ) : null}
 
         {errorMessage ? (
           <Text variant="caption" tone="danger">

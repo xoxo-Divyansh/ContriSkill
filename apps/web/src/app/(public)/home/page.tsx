@@ -19,29 +19,34 @@ export default function PublicHomePage() {
   return (
     <Container as="main" maxWidth="lg" paddingY="xl">
       <Stack gap="lg">
-        <Text as="h1" variant="title">
-          {webEnv.appName} Public Landing
-        </Text>
-        <Text tone="muted">
-          Public route-group shell is active. Feature pages are intentionally deferred.
-        </Text>
+        <Stack gap="sm">
+          <Text as="h1" variant="title">
+            {webEnv.appName}
+          </Text>
+          <Text tone="muted">
+            A trust-centered contribution workspace where identity grows through collaboration.
+          </Text>
+        </Stack>
 
         {showFoundationPreview ? (
           <Card variant="elevated">
             <CardHeader>
-              <Text variant="subtitle">Foundation Preview (Dev Only)</Text>
+              <Text variant="subtitle">Platform Preview (Dev Only)</Text>
               <Text variant="caption" tone="muted">
-                Primitive import and token alignment verification surface.
+                UI primitives, layout rhythm, and interaction baselines.
               </Text>
             </CardHeader>
             <CardBody>
-              <Stack gap="sm">
-                <Label htmlFor="foundation-preview-input">Sample Input</Label>
-                <Input id="foundation-preview-input" placeholder="Type-safe primitive input" />
-              </Stack>
-              <Stack direction="row" gap="sm">
-                <Button variant="primary">Primary Action</Button>
-                <Button variant="secondary">Secondary Action</Button>
+              <Stack gap="md">
+                <Stack gap="sm">
+                  <Label htmlFor="foundation-preview-input">Workspace Search</Label>
+                  <Input id="foundation-preview-input" placeholder="Search contributions..." />
+                </Stack>
+                <Stack direction="row" gap="sm" wrap>
+                  <Button variant="primary">Open Workspace</Button>
+                  <Button variant="secondary">View Contributions</Button>
+                  <Button variant="ghost">Read Product Docs</Button>
+                </Stack>
               </Stack>
             </CardBody>
           </Card>
