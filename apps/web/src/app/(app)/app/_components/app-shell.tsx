@@ -1,35 +1,46 @@
 "use client";
 
-import { Button, Container, Stack, Text } from "@contriskill/ui";
+import { Button, Text } from "@contriskill/ui";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { StatusBadge, WorkspacePanel } from "../../../../components/workspace/workspace-foundation";
+import styles from "../../../../components/workspace/workspace-foundation.module.css";
 import { routePaths } from "../../../../lib/routing/route-policy";
-import { resolveRealtimeTone } from "../../../../lib/ui/workspace-status";
+import { getRealtimeLabel, resolveRealtimeTone } from "../../../../lib/ui/workspace-status";
 import { useApiClient } from "../../../../providers/api-client-provider";
 import { useRealtime } from "../../../../providers/realtime-provider";
 import { useSession } from "../../../../providers/session-provider";
+
+import shellStyles from "./app-shell.module.css";
 
 type AppShellProps = {
   title: string;
   subtitle?: string;
   children: ReactNode;
+  contextPanel?: ReactNode;
 };
 
 const navigationItems = [
-  { href: routePaths.appHome, label: "Overview" },
-  { href: routePaths.contributions, label: "Contributions" },
-  { href: routePaths.profile, label: "Profile" },
-  { href: routePaths.settings, label: "Settings" }
+  { href: routePaths.appHome, label: "Overview", match: "exact" },
+  { href: routePaths.contributions, label: "Contributions", match: "prefix" },
+  { href: routePaths.profile, label: "Profile", match: "exact" },
+  { href: routePaths.settings, label: "Settings", match: "exact" }
 ] as const;
 
-export const AppShell = ({ title, subtitle, children }: AppShellProps) => {
+const isActiveRoute = (pathname: string, href: string, match: "exact" | "prefix") => {
+  return match === "prefix"
+    ? pathname === href || pathname.startsWith(`${href}/`)
+    : pathname === href;
+};
+
+export const AppShell = ({ title, subtitle, children, contextPanel }: AppShellProps) => {
   const pathname = usePathname();
   const router = useRouter();
+  const realtime = useRealtime();
   const { authClient } = useApiClient();
   const { session, clearSession, isReady } = useSession();
-  const realtime = useRealtime();
 
   const onSignOut = async () => {
     try {
@@ -43,70 +54,129 @@ export const AppShell = ({ title, subtitle, children }: AppShellProps) => {
   };
 
   return (
-    <section className="cs-shell">
-      <aside className="cs-shell-sidebar">
-        <Stack gap="md">
-          <Stack gap="xs">
-            <Text variant="subtitle">ContriSkill</Text>
-            <Text variant="caption" tone="muted">
-              Collaborative Workspace
-            </Text>
-          </Stack>
+    <div className={shellStyles.shell}>
+      <aside className={shellStyles.sidebar}>
+        <WorkspacePanel
+          eyebrow="Platform"
+          title="ContriSkill"
+          description="A collaborative contribution platform where coordination, trust, and visibility all stay legible."
+          subtle
+        >
+          <StatusBadge label={session.role} />
+          <Text variant="caption" tone="muted">
+            Signed in as {session.userId ?? "unknown"}.
+          </Text>
+        </WorkspacePanel>
 
-          <Stack gap="xs">
-            {navigationItems.map((item) => {
-              const isActive =
-                item.href === routePaths.contributions
-                  ? pathname.startsWith(routePaths.contributions)
-                  : pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="cs-nav-link"
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </Stack>
+        <nav aria-label="Workspace navigation" className={shellStyles.nav}>
+          {navigationItems.map((item) => {
+            const isActive = isActiveRoute(pathname, item.href, item.match);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={isActive ? "page" : undefined}
+                className={`${shellStyles.navLink} ${isActive ? shellStyles.navLinkActive : ""}`}
+              >
+                <Text variant="label">{item.label}</Text>
+                <Text variant="caption" tone={isActive ? "default" : "muted"}>
+                  {item.href === routePaths.appHome
+                    ? "Platform overview and workspace posture"
+                    : item.href === routePaths.contributions
+                      ? "Requests, workflow, and collaborative state"
+                      : item.href === routePaths.profile
+                        ? "Identity and participation context"
+                        : "Session and platform reliability surfaces"}
+                </Text>
+              </Link>
+            );
+          })}
+        </nav>
 
-          <Stack gap="xs">
-            <Text variant="caption" tone="muted">
-              Signed in as
-            </Text>
-            <Text variant="caption">
-              {session.userId ?? "unknown"} ({session.role})
-            </Text>
-            <Text variant="caption" tone={resolveRealtimeTone(realtime.state)}>
-              Realtime: {realtime.state}
-            </Text>
+        <div className={shellStyles.sidebarFooter}>
+          <WorkspacePanel
+            eyebrow="Session"
+            title="Current workspace context"
+            description="Persistent identity and connection cues keep the platform grounded while you move between routes."
+          >
+            <div className={styles.metricGrid}>
+              <div className={styles.metricCard}>
+                <p className={styles.metricLabel}>State</p>
+                <p className={styles.metricValue} style={{ fontSize: "1.125rem" }}>
+                  {session.sessionState}
+                </p>
+              </div>
+              <div className={styles.metricCard}>
+                <p className={styles.metricLabel}>Access</p>
+                <p className={styles.metricValue} style={{ fontSize: "1.125rem" }}>
+                  {session.actorType}
+                </p>
+              </div>
+            </div>
+            <StatusBadge
+              label={getRealtimeLabel(realtime.state)}
+              tone={
+                realtime.state === "connected"
+                  ? "success"
+                  : realtime.state === "connecting" || realtime.state === "reconnecting"
+                    ? "warning"
+                    : "danger"
+              }
+            />
             {!isReady ? (
               <Text variant="caption" tone="warning">
-                Restoring session...
+                Restoring your session and workspace context…
               </Text>
             ) : null}
-            <Button variant="secondary" onClick={() => void onSignOut()}>
-              Sign Out
-            </Button>
-          </Stack>
-        </Stack>
+          </WorkspacePanel>
+
+          <Button variant="secondary" fullWidth onClick={() => void onSignOut()}>
+            Sign Out
+          </Button>
+        </div>
       </aside>
 
-      <main className="cs-shell-main">
-        <Container as="section" maxWidth="xl" paddingY="sm" paddingX="sm">
-          <Stack gap="md">
-            <div className="cs-shell-topbar">
-              <Stack gap="xs">
+      <div className={shellStyles.mainColumn}>
+        <header className={shellStyles.topbar}>
+          <div>
+            <Text variant="label">Collaborative Platform Workspace</Text>
+            <Text tone="muted">
+              Shared contribution work with clearer hierarchy, sync visibility, and onboarding
+              context.
+            </Text>
+          </div>
+          <div className={shellStyles.topbarActions}>
+            <StatusBadge
+              label={getRealtimeLabel(realtime.state)}
+              tone={
+                resolveRealtimeTone(realtime.state) === "success"
+                  ? "success"
+                  : resolveRealtimeTone(realtime.state) === "warning"
+                    ? "warning"
+                    : resolveRealtimeTone(realtime.state) === "danger"
+                      ? "danger"
+                      : "default"
+              }
+            />
+            <StatusBadge label={`Session ${session.sessionState}`} />
+          </div>
+        </header>
+
+        <div className={shellStyles.contentWrap}>
+          <div className={shellStyles.contentGrid}>
+            <main className={shellStyles.primaryColumn}>
+              <div className={shellStyles.pageHeader}>
                 <Text variant="title">{title}</Text>
                 {subtitle ? <Text tone="muted">{subtitle}</Text> : null}
-              </Stack>
-            </div>
-            {children}
-          </Stack>
-        </Container>
-      </main>
-    </section>
+              </div>
+              {children}
+            </main>
+            {contextPanel ? (
+              <aside className={shellStyles.contextColumn}>{contextPanel}</aside>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };

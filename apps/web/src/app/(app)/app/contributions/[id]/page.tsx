@@ -1,29 +1,40 @@
 "use client";
 
 import { Button, Input, Label, Stack, Text } from "@contriskill/ui";
-import { Card, CardBody, CardHeader } from "@contriskill/ui";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import {
+  EmptyState,
+  MetricCard,
+  StatusBadge,
+  WorkspacePanel
+} from "../../../../../components/workspace/workspace-foundation";
+import styles from "../../../../../components/workspace/workspace-foundation.module.css";
 import type { ContributionPost } from "../../../../../lib/api/contribution-client";
 import { ApiClientError } from "../../../../../lib/api/types";
 import { createDraftSyncStore } from "../../../../../lib/drafts";
 import { createProjectionSyncStore } from "../../../../../lib/projections";
 import { useContributionPresence } from "../../../../../lib/realtime/presence";
 import {
-  contributionDraftSubscription,
   contributionDetailSubscription,
+  contributionDraftSubscription,
   contributionProjectionSubscription
 } from "../../../../../lib/realtime/subscriptions";
 import { useContributionWorkspaceSessions } from "../../../../../lib/realtime/workspace-sessions";
-import { formatSyncSummary, resolveRealtimeTone } from "../../../../../lib/ui/workspace-status";
+import {
+  formatSyncSummary,
+  getRealtimeLabel,
+  getSyncSurfaceLabel,
+  resolveRealtimeTone
+} from "../../../../../lib/ui/workspace-status";
 import { useApiClient } from "../../../../../providers/api-client-provider";
 import {
   useRealtime,
   useRealtimeEvent,
-  useRealtimeSubscription
+  useRealtimeSubscription,
+  type RealtimeUiEvent
 } from "../../../../../providers/realtime-provider";
-import type { RealtimeUiEvent } from "../../../../../providers/realtime-provider";
 import { useSession } from "../../../../../providers/session-provider";
 import { AppShell } from "../../_components/app-shell";
 
@@ -41,9 +52,32 @@ const normalizeApiErrorMessage = (error: unknown, fallback: string): string => {
   return fallback;
 };
 
+const formatContributionLabel = (value: string) => {
+  return value
+    .split("_")
+    .map((segment) => `${segment.charAt(0).toUpperCase()}${segment.slice(1)}`)
+    .join(" ");
+};
+
+const resolveSyncTone = (isSyncing: boolean, error?: string, status?: string) => {
+  if (error) {
+    return "danger" as const;
+  }
+
+  if (isSyncing) {
+    return "warning" as const;
+  }
+
+  if (status) {
+    return "success" as const;
+  }
+
+  return "default" as const;
+};
+
 export default function ContributionDetailPage({ params }: ContributionDetailPageProps) {
   const { contributionClient, draftClient, projectionClient } = useApiClient();
-  const { session } = useSession();
+  const { session, isReady } = useSession();
   const realtime = useRealtime();
   const presence = useContributionPresence(params.id);
   const workspaceSessions = useContributionWorkspaceSessions(params.id);
@@ -75,6 +109,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
   const loadContributionDetail = useCallback(async () => {
     setIsLoading(true);
     setErrorMessage(undefined);
+
     try {
       const loaded = await contributionClient.getPostById(params.id, session.accessToken);
       setPost(loaded);
@@ -87,6 +122,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
 
   const loadDraftSnapshot = useCallback(async () => {
     setDraftSyncError(undefined);
+
     try {
       const snapshot = await draftClient.getSnapshot(draftId, session.accessToken);
       draftStore.hydrateRemoteSnapshot(snapshot);
@@ -95,16 +131,19 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
       setDraftSyncStatus("Draft snapshot synchronized.");
     } catch (error) {
       const resolvedError = error as ApiClientError;
+
       if (resolvedError?.status === 404) {
         setDraftSyncStatus("No shared draft snapshot yet.");
         return;
       }
+
       setDraftSyncError(normalizeApiErrorMessage(error, "Failed to load draft snapshot."));
     }
   }, [draftClient, draftId, draftStore, session.accessToken]);
 
   const loadProjectionSnapshot = useCallback(async () => {
     setProjectionSyncError(undefined);
+
     try {
       const snapshot = await projectionClient.getSnapshot(projectionId, session.accessToken);
       projectionStore.hydrateRemoteSnapshot(snapshot);
@@ -113,10 +152,12 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
       setProjectionSyncStatus("Projection snapshot synchronized.");
     } catch (error) {
       const resolvedError = error as ApiClientError;
+
       if (resolvedError?.status === 404) {
         setProjectionSyncStatus("No shared workspace projection yet.");
         return;
       }
+
       setProjectionSyncError(
         normalizeApiErrorMessage(error, "Failed to load projection snapshot.")
       );
@@ -134,6 +175,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
       .pendingUpdates.filter((entry) =>
         ["pending", "optimistic_applied", "retrying"].includes(entry.status)
       ).length;
+
     setDraftPendingCount(draftPending);
     setProjectionPendingCount(projectionPending);
   }, [draftStore, projectionStore]);
@@ -147,6 +189,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
         if (event.topicHint !== `contribution:${params.id}`) {
           return;
         }
+
         if (
           event.eventName !== "contribution.post.created.v1" &&
           event.eventName !== "contribution.post.updated.v1" &&
@@ -174,6 +217,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
               appliedDraftVersion?: number;
               message?: string;
             };
+
             draftStore.applyRealtimeLifecycle(payload);
             const state = draftStore.getState();
             if (state.remoteDraft) {
@@ -206,6 +250,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
               appliedProjectionVersion?: number;
               message?: string;
             };
+
             projectionStore.applyRealtimeLifecycle(payload);
             const state = projectionStore.getState();
             if (state.remoteProjection) {
@@ -217,6 +262,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
 
           return;
         }
+
         void loadContributionDetail();
       },
       [
@@ -240,6 +286,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
 
   const onSyncDraft = async () => {
     if (!session.userId) {
+      setDraftSyncError("A signed-in workspace actor is required before syncing a draft.");
       return;
     }
 
@@ -266,6 +313,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
 
     draftStore.enqueueOptimisticPatch(nextEnvelope);
     refreshSyncCounters();
+
     try {
       const result = await draftClient.syncPatch(nextEnvelope, session.accessToken);
       draftStore.applyPatchResult(result);
@@ -286,6 +334,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
     setErrorMessage(undefined);
     setStatusMessage(undefined);
     setIsSubmitting(true);
+
     try {
       const application = await contributionClient.submitApplication(
         {
@@ -294,8 +343,9 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
         },
         session.accessToken
       );
+
       setApplicationId(application.id);
-      setStatusMessage(`Submitted application ${application.id}.`);
+      setStatusMessage(`Application ${application.id} is ready for review.`);
     } catch (error) {
       setErrorMessage(normalizeApiErrorMessage(error, "Failed to submit application."));
     } finally {
@@ -305,6 +355,9 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
 
   const onSyncProjection = async () => {
     if (!session.userId) {
+      setProjectionSyncError(
+        "A signed-in workspace actor is required before syncing a projection."
+      );
       return;
     }
 
@@ -332,6 +385,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
 
     projectionStore.enqueueOptimisticUpdate(nextEnvelope);
     refreshSyncCounters();
+
     try {
       const result = await projectionClient.syncUpdate(nextEnvelope, session.accessToken);
       projectionStore.applyUpdateResult(result);
@@ -356,6 +410,7 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
     setErrorMessage(undefined);
     setStatusMessage(undefined);
     setIsSubmitting(true);
+
     try {
       const collaboration = await contributionClient.acceptApplication(
         {
@@ -364,7 +419,10 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
         },
         session.accessToken
       );
-      setStatusMessage(`Accepted application. Collaboration ${collaboration.id} created.`);
+
+      setStatusMessage(
+        `Accepted application. Collaboration ${collaboration.id} is now ${collaboration.state}.`
+      );
     } catch (error) {
       setErrorMessage(normalizeApiErrorMessage(error, "Failed to accept application."));
     } finally {
@@ -372,106 +430,230 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
     }
   };
 
+  const realtimeTone =
+    resolveRealtimeTone(realtime.state) === "success"
+      ? "success"
+      : resolveRealtimeTone(realtime.state) === "warning"
+        ? "warning"
+        : resolveRealtimeTone(realtime.state) === "danger"
+          ? "danger"
+          : "default";
+
+  const draftSurfaceTone = resolveSyncTone(isDraftSyncing, draftSyncError, draftSyncStatus);
+  const projectionSurfaceTone = resolveSyncTone(
+    isProjectionSyncing,
+    projectionSyncError,
+    projectionSyncStatus
+  );
+
+  const participants = workspaceSessions.participants;
+  const hasParticipantSessions = participants.length > 0;
+
   return (
     <AppShell
-      title="Contribution Detail"
-      subtitle="Coordinate applications and collaboration state for this contribution."
-    >
-      <Stack gap="lg">
-        {isLoading ? (
-          <Text tone="muted">Loading contribution detail...</Text>
-        ) : post ? (
-          <Card variant="elevated">
-            <CardHeader>
-              <Text variant="subtitle">{post.title}</Text>
-              <Text tone="muted">{post.description}</Text>
-            </CardHeader>
-            <CardBody>
-              <Stack gap="xs">
-                <Text variant="caption">
-                  {post.id} • {post.type} • {post.difficulty} • {post.state}
-                </Text>
-                <Text variant="caption" tone="muted">
-                  Active collaborators: {presence.activeCount}
-                </Text>
-                <Text variant="caption" tone={resolveRealtimeTone(realtime.state)}>
-                  Realtime state: {realtime.state}
-                </Text>
-                <Text variant="caption" tone="muted">
-                  Workspace sessions: {workspaceSessions.activeCount}
-                </Text>
-                {workspaceSessions.workspaceId ? (
-                  <Text variant="caption" tone="muted">
-                    Workspace: {workspaceSessions.workspaceId}
-                  </Text>
-                ) : null}
-                {workspaceSessions.participants.length > 0 ? (
-                  <Text variant="caption" tone="muted">
-                    Participants:{" "}
-                    {workspaceSessions.participants
-                      .map((participant) => `${participant.actorId} (${participant.sessionState})`)
-                      .join(", ")}
-                  </Text>
-                ) : (
-                  <Text variant="caption" tone="muted">
-                    No active participant sessions yet.
-                  </Text>
-                )}
-                <Text variant="caption" tone="muted">
-                  {formatSyncSummary({
-                    draftPending: draftPendingCount,
-                    projectionPending: projectionPendingCount
-                  })}
-                </Text>
-              </Stack>
-            </CardBody>
-          </Card>
-        ) : (
-          <Card variant="subtle">
-            <CardBody>
-              <Stack gap="xs">
-                <Text tone="muted">Contribution not found.</Text>
-                <Link href="/app/contributions">Back to Contributions</Link>
-              </Stack>
-            </CardBody>
-          </Card>
-        )}
-
-        <div className="cs-panel-grid">
-          <Card variant="outlined">
-            <CardHeader>
-              <Text variant="subtitle">Application Actions</Text>
-              <Text variant="caption" tone="muted">
-                Submit and accept collaboration applications.
+      title={post?.title ?? "Contribution Workspace"}
+      subtitle="Review collaboration context, manage applications, and keep shared sync surfaces readable."
+      contextPanel={
+        <>
+          <WorkspacePanel
+            eyebrow="Collaboration signals"
+            title="Current workspace posture"
+            description="Participants, connection quality, and sync health are grouped here to keep the collaboration story legible."
+          >
+            <div className={styles.metricGrid}>
+              <MetricCard
+                label="Participants"
+                value={presence.activeCount}
+                helper="Currently visible on this contribution"
+              />
+              <MetricCard
+                label="Sessions"
+                value={workspaceSessions.activeCount}
+                helper="Active workspace session count"
+              />
+            </div>
+            <StatusBadge label={getRealtimeLabel(realtime.state)} tone={realtimeTone} />
+            {!isReady ? (
+              <Text variant="caption" tone="warning">
+                Restoring saved session context for this workspace.
               </Text>
-            </CardHeader>
-            <CardBody>
-              <Stack gap="sm">
-                <Stack gap="xs">
-                  <Label htmlFor="application-message">Application Message</Label>
-                  <Input
+            ) : null}
+          </WorkspacePanel>
+
+          <WorkspacePanel
+            eyebrow="Workflow"
+            title="Why this workspace exists"
+            description="Contribution detail is where a request becomes collaborative work without introducing a heavier editor or messaging system."
+          >
+            <div className={styles.keyValueList}>
+              <div className={styles.keyValueItem}>
+                <Text variant="label">Applications</Text>
+                <Text tone="muted">
+                  People can signal intent to help before the route advances into collaboration
+                  state.
+                </Text>
+              </div>
+              <div className={styles.keyValueItem}>
+                <Text variant="label">Draft sync</Text>
+                <Text tone="muted">
+                  Shared notes show optimistic progress and acknowledge when the backend catches up.
+                </Text>
+              </div>
+              <div className={styles.keyValueItem}>
+                <Text variant="label">Projection sync</Text>
+                <Text tone="muted">
+                  Lightweight projection updates keep workspace posture visible without changing the
+                  realtime architecture.
+                </Text>
+              </div>
+            </div>
+          </WorkspacePanel>
+
+          <WorkspacePanel
+            eyebrow="Participants"
+            title="Session visibility"
+            description="The route keeps participant presence visible so collaborators know whether a workspace is actively occupied."
+          >
+            {hasParticipantSessions ? (
+              <div className={styles.participantList}>
+                {participants.map((participant) => (
+                  <div key={participant.workspaceSessionId} className={styles.participantRow}>
+                    <div className={styles.participantMeta}>
+                      <Text variant="label">{participant.actorId}</Text>
+                      <Text variant="caption" tone="muted">
+                        Connections {participant.connectionIds.length}
+                      </Text>
+                    </div>
+                    <StatusBadge label={formatContributionLabel(participant.sessionState)} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <Text tone="muted">No active participant sessions are visible yet.</Text>
+            )}
+          </WorkspacePanel>
+        </>
+      }
+    >
+      {isLoading ? (
+        <WorkspacePanel
+          eyebrow="Loading"
+          title="Hydrating contribution detail"
+          description="Pulling the contribution, draft, and projection surfaces into one readable route."
+          subtle
+        >
+          <StatusBadge label="Loading workspace state" tone="warning" />
+        </WorkspacePanel>
+      ) : !post ? (
+        <EmptyState
+          title="Contribution not found"
+          description="The workspace could not find this contribution. Head back to the queue and pick another contribution surface."
+          actions={
+            <Link href="/app/contributions" className={styles.linkButton}>
+              <Text variant="label">Back to contribution workspace</Text>
+            </Link>
+          }
+        />
+      ) : (
+        <>
+          <div className={styles.metricGrid}>
+            <MetricCard
+              label="State"
+              value={formatContributionLabel(post.state)}
+              helper="Current workflow posture"
+            />
+            <MetricCard
+              label="Type"
+              value={formatContributionLabel(post.type)}
+              helper="Collaboration lane"
+            />
+            <MetricCard
+              label="Difficulty"
+              value={formatContributionLabel(post.difficulty)}
+              helper="Expected effort signal"
+            />
+          </div>
+
+          <WorkspacePanel
+            eyebrow="Contribution summary"
+            title="Readability before action"
+            description={post.description}
+            actions={<StatusBadge label={formatContributionLabel(post.state)} />}
+            footer={
+              <Text variant="caption" tone="muted">
+                {formatSyncSummary({
+                  draftPending: draftPendingCount,
+                  projectionPending: projectionPendingCount
+                })}
+              </Text>
+            }
+          >
+            <div className={styles.keyValueList}>
+              <div className={styles.keyValueItem}>
+                <Text variant="label">Workspace id</Text>
+                <Text tone="muted">{post.id}</Text>
+              </div>
+              <div className={styles.keyValueItem}>
+                <Text variant="label">Credit offer</Text>
+                <Text tone="muted">{post.creditOffer} credits</Text>
+              </div>
+              <div className={styles.keyValueItem}>
+                <Text variant="label">Presence</Text>
+                <Text tone="muted">{presence.activeCount} active collaborator signals</Text>
+              </div>
+              <div className={styles.keyValueItem}>
+                <Text variant="label">Realtime</Text>
+                <Text tone="muted">{getRealtimeLabel(realtime.state)}</Text>
+              </div>
+            </div>
+          </WorkspacePanel>
+
+          <div className={styles.cardList}>
+            <WorkspacePanel
+              eyebrow="Applications"
+              title="Move from interest to collaboration"
+              description="Use the existing application flow, but present it with clearer workflow guidance."
+            >
+              <div className={styles.formGrid}>
+                <Stack gap="xs" className={styles.span12}>
+                  <Label htmlFor="application-message" requiredIndicator>
+                    Application message
+                  </Label>
+                  <textarea
                     id="application-message"
+                    className={styles.textarea}
                     value={message}
                     onChange={(event) => setMessage(event.currentTarget.value)}
+                    placeholder="Explain why you are a strong fit for this contribution."
                   />
                 </Stack>
-                <Button
-                  variant="secondary"
-                  onClick={() => void onSubmitApplication()}
-                  loading={isSubmitting}
-                  disabled={!message}
-                >
-                  Submit Application
-                </Button>
-                <Stack gap="xs">
-                  <Label htmlFor="application-id">Application ID</Label>
+                <Stack gap="xs" className={styles.span8}>
+                  <Label htmlFor="application-id">Application id</Label>
                   <Input
                     id="application-id"
                     value={applicationId}
                     onChange={(event) => setApplicationId(event.currentTarget.value)}
-                    placeholder="Paste or use submitted application id"
+                    placeholder="Paste the application id to accept it"
                   />
                 </Stack>
+                <Stack gap="xs" className={styles.span4}>
+                  <Label>Workflow note</Label>
+                  <Text tone="muted">
+                    Submit an application first, then accept it when the workspace is ready to
+                    progress.
+                  </Text>
+                </Stack>
+              </div>
+
+              <Stack direction="row" gap="sm" wrap>
+                <Button
+                  variant="secondary"
+                  onClick={() => void onSubmitApplication()}
+                  loading={isSubmitting}
+                  disabled={!message.trim()}
+                >
+                  Submit Application
+                </Button>
                 <Button
                   variant="ghost"
                   onClick={() => void onAcceptApplication()}
@@ -480,26 +662,44 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
                   Accept Application
                 </Button>
               </Stack>
-            </CardBody>
-          </Card>
+            </WorkspacePanel>
 
-          <Card variant="outlined">
-            <CardHeader>
-              <Text variant="subtitle">Draft + Projection Coordination</Text>
-              <Text variant="caption" tone="muted">
-                Lightweight sync surfaces for collaboration state.
-              </Text>
-            </CardHeader>
-            <CardBody>
-              <Stack gap="sm">
-                <Stack gap="xs">
-                  <Text variant="label">Draft sync ({draftVersionLabel})</Text>
-                  <Label htmlFor="draft-note">Draft Note</Label>
-                  <Input
+            <WorkspacePanel
+              eyebrow="Sync surfaces"
+              title="Draft and projection visibility"
+              description="These lightweight controls expose optimistic state, retries, and synchronized snapshots without introducing a heavier editor."
+            >
+              <div className={styles.metricGrid}>
+                <MetricCard
+                  label="Draft version"
+                  value={draftVersionLabel}
+                  helper={`${draftPendingCount} pending changes`}
+                />
+                <MetricCard
+                  label="Projection version"
+                  value={projectionVersionLabel}
+                  helper={`${projectionPendingCount} pending changes`}
+                />
+              </div>
+
+              <div className={styles.formGrid}>
+                <Stack gap="xs" className={styles.span6}>
+                  <StatusBadge
+                    label={getSyncSurfaceLabel({
+                      isSyncing: isDraftSyncing,
+                      hasError: Boolean(draftSyncError),
+                      hasStatus: Boolean(draftSyncStatus),
+                      idleLabel: "Draft idle"
+                    })}
+                    tone={draftSurfaceTone}
+                  />
+                  <Label htmlFor="draft-note">Draft note</Label>
+                  <textarea
                     id="draft-note"
+                    className={styles.textarea}
                     value={draftNote}
                     onChange={(event) => setDraftNote(event.currentTarget.value)}
-                    placeholder="Add draft note for contribution coordination"
+                    placeholder="Capture the current shared draft context for this contribution."
                   />
                   <Button
                     variant="secondary"
@@ -520,14 +720,23 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
                   ) : null}
                 </Stack>
 
-                <Stack gap="xs">
-                  <Text variant="label">Projection sync ({projectionVersionLabel})</Text>
-                  <Label htmlFor="projection-note">Projection Note</Label>
-                  <Input
+                <Stack gap="xs" className={styles.span6}>
+                  <StatusBadge
+                    label={getSyncSurfaceLabel({
+                      isSyncing: isProjectionSyncing,
+                      hasError: Boolean(projectionSyncError),
+                      hasStatus: Boolean(projectionSyncStatus),
+                      idleLabel: "Projection idle"
+                    })}
+                    tone={projectionSurfaceTone}
+                  />
+                  <Label htmlFor="projection-note">Projection note</Label>
+                  <textarea
                     id="projection-note"
+                    className={styles.textarea}
                     value={projectionNote}
                     onChange={(event) => setProjectionNote(event.currentTarget.value)}
-                    placeholder="Project workspace state for collaborators"
+                    placeholder="Project the latest workspace state for collaborators."
                   />
                   <Button
                     variant="secondary"
@@ -547,36 +756,52 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
                     </Text>
                   ) : null}
                 </Stack>
-              </Stack>
-            </CardBody>
-          </Card>
-        </div>
+              </div>
+            </WorkspacePanel>
+          </div>
 
-        {workspaceSessions.workspaceId ? (
-          <Card variant="subtle">
-            <CardHeader>
-              <Text variant="subtitle">Participant Session Awareness</Text>
-            </CardHeader>
-            <CardBody>
-              <Text variant="caption" tone="muted">
-                Workspace: {workspaceSessions.workspaceId} | Active sessions:{" "}
-                {workspaceSessions.activeCount}
-              </Text>
-            </CardBody>
-          </Card>
-        ) : null}
+          {workspaceSessions.workspaceId ? (
+            <WorkspacePanel
+              eyebrow="Workspace session"
+              title="Shared occupancy"
+              description="Session visibility stays lightweight but still tells the story of whether this contribution is actively being worked."
+            >
+              <div className={styles.keyValueList}>
+                <div className={styles.keyValueItem}>
+                  <Text variant="label">Workspace id</Text>
+                  <Text tone="muted">{workspaceSessions.workspaceId}</Text>
+                </div>
+                <div className={styles.keyValueItem}>
+                  <Text variant="label">Active sessions</Text>
+                  <Text tone="muted">{workspaceSessions.activeCount}</Text>
+                </div>
+              </div>
+            </WorkspacePanel>
+          ) : null}
+        </>
+      )}
 
-        {errorMessage ? (
-          <Text variant="caption" tone="danger">
-            {errorMessage}
-          </Text>
-        ) : null}
-        {statusMessage ? (
-          <Text variant="caption" tone="success">
-            {statusMessage}
-          </Text>
-        ) : null}
-      </Stack>
+      {errorMessage ? (
+        <WorkspacePanel
+          eyebrow="Needs attention"
+          title="The workspace hit an error"
+          description={errorMessage}
+          subtle
+        >
+          <StatusBadge label="Action needed" tone="danger" />
+        </WorkspacePanel>
+      ) : null}
+
+      {statusMessage ? (
+        <WorkspacePanel
+          eyebrow="Workspace update"
+          title="The collaboration state changed"
+          description={statusMessage}
+          subtle
+        >
+          <StatusBadge label="Saved" tone="success" />
+        </WorkspacePanel>
+      ) : null}
     </AppShell>
   );
 }

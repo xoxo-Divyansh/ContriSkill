@@ -2,16 +2,21 @@
   color-scheme: light;
 }
 
+html,
+body {
+  min-height: 100%;
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell,
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell,
     Noto Sans, sans-serif;
   line-height: 1.5;
-  background: #f8fafc;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
   color: #0f172a;
 }
 
@@ -24,93 +29,13 @@ a:hover {
   text-decoration: underline;
 }
 
-.cs-shell {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 260px 1fr;
+button,
+input,
+select,
+textarea {
+  font: inherit;
 }
 
-.cs-shell-sidebar {
-  border-right: 1px solid #e2e8f0;
-  background: #ffffff;
-  padding: 1rem;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-}
-
-.cs-shell-main {
-  padding: 1rem;
-}
-
-.cs-shell-topbar {
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  border-radius: 0.75rem;
-  padding: 0.875rem;
-}
-
-.cs-nav-link {
-  display: block;
-  border: 1px solid #e2e8f0;
-  border-radius: 0.625rem;
-  padding: 0.625rem 0.75rem;
-  font-weight: 500;
-  color: #334155;
-  background: #ffffff;
-}
-
-.cs-nav-link:hover {
-  text-decoration: none;
-  border-color: #cbd5e1;
-  background: #f8fafc;
-}
-
-.cs-nav-link[aria-current="page"] {
-  border-color: #2563eb;
-  color: #1d4ed8;
-  background: #eff6ff;
-}
-
-.cs-form-grid {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.cs-input-like {
-  width: 100%;
-  min-height: 2.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid #cbd5e1;
-  padding: 0.5rem 0.625rem;
-  background: #ffffff;
-  color: #0f172a;
-}
-
-.cs-panel-grid {
-  display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-@media (max-width: 960px) {
-  .cs-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .cs-shell-sidebar {
-    position: static;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid #e2e8f0;
-  }
-
-  .cs-form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .cs-panel-grid {
-    grid-template-columns: 1fr;
-  }
+::selection {
+  background: rgba(37, 99, 235, 0.18);
 }
