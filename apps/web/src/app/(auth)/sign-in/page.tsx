@@ -14,6 +14,12 @@ import {
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import {
+  MetricCard,
+  StatusBadge,
+  WorkspacePanel
+} from "../../../components/workspace/workspace-foundation";
+import styles from "../../../components/workspace/workspace-foundation.module.css";
 import { ApiClientError } from "../../../lib/api/types";
 import { RedirectIfAuth } from "../../../lib/routing/redirect-if-auth";
 import { toSessionSnapshot } from "../../../lib/session/session-mappers";
@@ -72,96 +78,133 @@ export default function SignInPage() {
 
   return (
     <RedirectIfAuth>
-      <Container as="main" maxWidth="sm" paddingY="xl">
-        <Card variant="elevated">
-          <CardHeader>
-            <Text variant="title">Welcome to ContriSkill</Text>
-            <Text tone="muted">Sign in or register to access the contribution workspace.</Text>
-          </CardHeader>
-          <CardBody>
-            <Stack gap="md">
-              <Stack direction="row" gap="sm">
-                <Button
-                  variant={mode === "sign-in" ? "primary" : "secondary"}
-                  onClick={() => setMode("sign-in")}
-                >
-                  Sign In
-                </Button>
-                <Button
-                  variant={mode === "register" ? "primary" : "secondary"}
-                  onClick={() => setMode("register")}
-                >
-                  Register
-                </Button>
-              </Stack>
+      <Container as="main" maxWidth="xl" paddingY="xxl">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(18rem, 1fr))",
+            gap: "1.5rem",
+            alignItems: "start"
+          }}
+        >
+          <WorkspacePanel
+            eyebrow="Welcome"
+            title="Enter the collaborative platform workspace"
+            description="The onboarding flow now explains the product and the collaboration model more clearly."
+            subtle
+          >
+            <StatusBadge label={mode === "register" ? "Registration flow" : "Sign-in flow"} />
+            <Text tone="muted">
+              Once authenticated, you land in a platform built around contribution discovery,
+              workspace coordination, and clear visibility into realtime, draft, and projection
+              state.
+            </Text>
+            <div className={styles.metricGrid}>
+              <MetricCard
+                label="First-time clarity"
+                value="Improved"
+                helper="The product intent is explained before entry"
+              />
+              <MetricCard
+                label="Session continuity"
+                value="Visible"
+                helper="Authentication remains stable and understandable"
+              />
+            </div>
+          </WorkspacePanel>
 
-              {mode === "register" ? (
-                <>
+          <Card variant="elevated">
+            <CardHeader>
+              <Text variant="title">Welcome to ContriSkill</Text>
+              <Text tone="muted">Sign in or register to access the contribution workspace.</Text>
+            </CardHeader>
+            <CardBody>
+              <Stack gap="md">
+                <Stack direction="row" gap="sm" wrap>
+                  <Button
+                    variant={mode === "sign-in" ? "primary" : "secondary"}
+                    onClick={() => setMode("sign-in")}
+                  >
+                    Sign In
+                  </Button>
+                  <Button
+                    variant={mode === "register" ? "primary" : "secondary"}
+                    onClick={() => setMode("register")}
+                  >
+                    Register
+                  </Button>
+                </Stack>
+
+                {mode === "register" ? (
+                  <>
+                    <Stack gap="xs">
+                      <Label htmlFor="register-email">Email</Label>
+                      <Input
+                        id="register-email"
+                        value={email}
+                        onChange={(event) => setEmail(event.currentTarget.value)}
+                        placeholder="you@example.com"
+                        autoComplete="email"
+                      />
+                    </Stack>
+                    <Stack gap="xs">
+                      <Label htmlFor="register-username">Username</Label>
+                      <Input
+                        id="register-username"
+                        value={username}
+                        onChange={(event) => setUsername(event.currentTarget.value)}
+                        placeholder="contributor01"
+                        autoComplete="username"
+                      />
+                    </Stack>
+                  </>
+                ) : (
                   <Stack gap="xs">
-                    <Label htmlFor="register-email">Email</Label>
+                    <Label htmlFor="sign-in-identifier">Email or Username</Label>
                     <Input
-                      id="register-email"
-                      value={email}
-                      onChange={(event) => setEmail(event.currentTarget.value)}
+                      id="sign-in-identifier"
+                      value={identifier}
+                      onChange={(event) => setIdentifier(event.currentTarget.value)}
                       placeholder="you@example.com"
-                      autoComplete="email"
-                    />
-                  </Stack>
-                  <Stack gap="xs">
-                    <Label htmlFor="register-username">Username</Label>
-                    <Input
-                      id="register-username"
-                      value={username}
-                      onChange={(event) => setUsername(event.currentTarget.value)}
-                      placeholder="contributor01"
                       autoComplete="username"
                     />
                   </Stack>
-                </>
-              ) : (
+                )}
+
                 <Stack gap="xs">
-                  <Label htmlFor="sign-in-identifier">Email or Username</Label>
+                  <Label htmlFor="auth-password">Password</Label>
                   <Input
-                    id="sign-in-identifier"
-                    value={identifier}
-                    onChange={(event) => setIdentifier(event.currentTarget.value)}
-                    placeholder="you@example.com"
-                    autoComplete="username"
+                    id="auth-password"
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.currentTarget.value)}
+                    placeholder="********"
+                    autoComplete={mode === "register" ? "new-password" : "current-password"}
                   />
                 </Stack>
-              )}
 
-              <Stack gap="xs">
-                <Label htmlFor="auth-password">Password</Label>
-                <Input
-                  id="auth-password"
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.currentTarget.value)}
-                  placeholder="********"
-                  autoComplete={mode === "register" ? "new-password" : "current-password"}
-                />
+                {errorMessage ? (
+                  <Text variant="caption" tone="danger">
+                    {errorMessage}
+                  </Text>
+                ) : null}
+
+                <Button
+                  onClick={() => void onSubmit()}
+                  loading={isSubmitting}
+                  fullWidth
+                  disabled={
+                    mode === "register"
+                      ? !email || !username || !password
+                      : !identifier || !password
+                  }
+                >
+                  {mode === "register" ? "Register and Continue" : "Sign In"}
+                </Button>
               </Stack>
-
-              {errorMessage ? (
-                <Text variant="caption" tone="danger">
-                  {errorMessage}
-                </Text>
-              ) : null}
-
-              <Button
-                onClick={() => void onSubmit()}
-                loading={isSubmitting}
-                fullWidth
-                disabled={
-                  mode === "register" ? !email || !username || !password : !identifier || !password
-                }
-              >
-                {mode === "register" ? "Register and Continue" : "Sign In"}
-              </Button>
-            </Stack>
-          </CardBody>
-        </Card>
+            </CardBody>
+          </Card>
+        </div>
       </Container>
     </RedirectIfAuth>
   );
