@@ -1,64 +1,109 @@
-# Repository Structure
+﻿# Repository Structure
 
-- **Purpose:** Define the canonical repository layout for Phase-0 Governance and establish the target monorepo direction before application implementation begins.
-- **Owner:** Architecture + Engineering
-- **Status:** Draft
-- **Related docs:** `roadmap.md`, `../03-engineering/git-workflow.md`, `../adr/ADR-001-monorepo-architecture.md`
+## Purpose
 
-## Current Repository State
+Define the current ContriSkill monorepo structure and the official repository path conventions used for day-to-day development.
 
-The repository currently contains empty implementation directories:
+## Canonical Repository Path
 
-- `frontend/`
-- `backend/`
-- `assets/`
-- `scripts/`
+- Windows: `D:\Dev\src\products\ContriSkill-main`
+- WSL: `/mnt/d/Dev/src/products/ContriSkill-main`
 
-These directories are intentionally left unused during Phase-0 Governance. No application code should be added to them until the implementation branch formally begins.
+This is the canonical repository path for repository management and shared documentation references.
 
-## Canonical Documentation Structure
+Repository/worktree/Git/Codex governance source of truth:
 
-```text
-docs/
-├── 00-overview/
-├── 01-product/
-├── 02-architecture/
-├── 03-engineering/
-├── 04-design/
-├── 05-ai-workflow/
-└── adr/
-```
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\README.md`
 
-## Future Monorepo Direction
+## Workspace Warning
 
-The intended implementation layout is:
+Do **not** use `D:\Dev\src\products\ContriSkill` for active work.
+
+That older workspace is quarantined until it is intentionally reconciled.
+
+## Current Top-Level Structure
 
 ```text
 project-root/
 ├── apps/
-│   ├── web/
-│   └── api/
+│   ├── api/
+│   └── web/
 ├── packages/
-│   ├── ui/
+│   ├── config/
 │   ├── contracts/
 │   ├── domain/
-│   └── config/
+│   ├── ui/
+│   └── utils/
 ├── database/
 ├── docs/
+├── scripts/
 ├── tests/
-└── tooling/
+├── tooling/
+├── .github/
+└── root config files
 ```
 
-This future structure is governed by `../adr/ADR-001-monorepo-architecture.md`.
+## Responsibility Map
 
-## Governance Rules
+### `apps/api`
 
-- documentation comes before implementation
-- architecture decisions that affect system boundaries must be recorded in ADRs
-- unresolved design choices must be marked as **OPEN DECISION**
-- legacy empty folders should not become the default implementation target by accident
+Backend API application, auth/session handling, contribution services, realtime runtime, and repository boundaries.
 
-## OPEN DECISION
+### `apps/web`
 
-- When implementation begins, should `frontend/` and `backend/` be removed immediately or preserved during transition to `apps/`?
-- Should `database/` be introduced before application code, or alongside the first schema proposal?
+Frontend application shell, onboarding, contribution workflows, session/bootstrap UX, and collaborative platform surfaces.
+
+### `packages/config`
+
+Shared configuration constants and environment-key definitions.
+
+### `packages/contracts`
+
+Shared contracts for API payloads, realtime events, drafts, mutations, projections, and session-facing boundaries.
+
+### `packages/domain`
+
+Shared domain models, types, policies, and core business structures.
+
+### `packages/ui`
+
+Shared visual primitives, tokens, theme support, and reusable UI building blocks.
+
+### `packages/utils`
+
+Shared utility helpers that are intentionally small and cross-cutting.
+
+### `database`
+
+SQL migrations and database support files.
+
+### `docs`
+
+Product, architecture, engineering, design, and governance documentation.
+
+### `scripts`
+
+Repository automation and helper scripts.
+
+### `tests`
+
+Cross-workspace or integration-oriented test support where applicable.
+
+### `tooling`
+
+Supporting tooling configuration and development infrastructure where applicable.
+
+## Development Workspace Convention
+
+- `ContriSkill-main`: canonical management workspace.
+- `ContriSkill-<phase>`: active feature worktree for one major branch.
+- one major phase should not be spread across multiple ambiguous local folders.
+
+## Related Governance Docs
+
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\README.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\worktree-management.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\branch-hygiene.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\codex-workflow.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\local-cleanup-plan.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\developer-checklist.md`

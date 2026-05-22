@@ -1,46 +1,39 @@
-# Git Workflow
+﻿# Git Workflow
 
-- **Purpose:** Define how repository changes move from proposal to review to merge during Phase-0 and early implementation.
+- **Purpose:** Preserve a lightweight compatibility entry point while making repository governance documentation the single source of truth.
 - **Owner:** Engineering
-- **Status:** Draft
+- **Status:** Active
+- **Source of truth:** `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\README.md`
 - **Related docs:** `commit-conventions.md`, `pr-review-checklist.md`, `../00-overview/repository-structure.md`
 
-## Branching Strategy
+## Governance Source Of Truth
 
-Use a lightweight trunk-based workflow:
+All active guidance for:
 
-- `main` is the protected default branch
-- create short-lived topic branches from `main`
-- keep branch scope narrow to one coherent change set
-- prefer documentation, governance, or architecture-only branches during Phase-0
+- canonical repository selection,
+- worktree creation and retirement,
+- branch naming and hygiene,
+- Codex writable-root verification,
+- post-merge cleanup flow,
+- safe recovery when the wrong workspace is opened,
 
-## Recommended Branch Naming
+now lives in:
 
-```text
-phase0/docs-...
-phase0/adr-...
-phase0/governance-...
-feature/...
-fix/...
-chore/...
-```
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\README.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\worktree-management.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\branch-hygiene.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\codex-workflow.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\local-cleanup-plan.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\developer-checklist.md`
 
-## Pull Request Expectations
+## Current Working Rules
 
-- open PRs early for visibility
-- keep changes reviewable
-- link the affected docs or ADRs
-- call out all **OPEN DECISION** items explicitly
+- `D:\Dev\src\products\ContriSkill-main` is the canonical management workspace.
+- `D:\Dev\src\products\ContriSkill` is quarantined and should not be used for active implementation.
+- Use `D:\Dev\src\products\ContriSkill-<phase>` for one active branch/worktree per major phase.
+- Launch Codex from the exact worktree it should edit and verify with Git pre-flight commands first.
+- Review branch and worktree cleanup after merge, but execute cleanup intentionally rather than implicitly.
 
-## Merge Guidance
+## Why This Document Still Exists
 
-- prefer squash merges for small governance changes
-- do not merge unresolved architectural contradictions
-- update docs in the same PR when decisions change
-
-## Phase-0 Constraints
-
-- no frontend or backend implementation
-- no dependency installation
-- no speculative scaffolding
-- no hidden architecture decisions outside docs
+Older docs and habits may still point to `git-workflow.md`. This file now exists to redirect readers into the consolidated governance system instead of maintaining a second, potentially conflicting rule set.

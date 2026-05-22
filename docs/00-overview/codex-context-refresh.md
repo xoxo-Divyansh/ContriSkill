@@ -1,204 +1,94 @@
-# Codex Context Refresh
+﻿# Codex Context Refresh
 
 ## Purpose
 
-Persistent onboarding and context-refresh document for future Codex/ChatGPT sessions working in ContriSkill.
+Persistent onboarding and context-refresh document for future Codex sessions working in ContriSkill.
 
-## 1) Repository Overview
+## 1) Canonical Repository Decision
 
-- Repository: `D:/Dev/src/products/ContriSkill`
-- Platform: ContriSkill (trust-centered contribution ecosystem).
-- Current stage: Sprint 1 foundation implemented; Sprint 2 planning documents prepared.
-- Engineering mode: production-oriented incremental build, policy-first for trust systems.
+- Official repository path: `D:\Dev\src\products\ContriSkill-main`
+- WSL equivalent: `/mnt/d/Dev/src/products/ContriSkill-main`
+- Use this path as the default reference for audits, branching, and documentation.
+- Do **not** use `D:\Dev\src\products\ContriSkill` for active implementation work.
 
-## 2) Product Vision Summary
+## 2) Workspace Governance Snapshot
 
-- Users build identity through meaningful contributions.
-- Trust is earned through verification, collaboration outcomes, and transparent history.
-- Credits/reputation are governed by auditable, policy-driven events.
-- Moderation and dispute handling protect ecosystem integrity.
+- `ContriSkill-main` is the canonical management workspace.
+- `ContriSkill-<phase>` is the standard naming pattern for active feature worktrees.
+- One major phase should map to one branch and one worktree.
+- Codex should be launched from the exact repo path it is expected to edit.
+- Source of truth: `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\README.md`
 
-## 3) Current Architecture State
+## 3) Product and Architecture Snapshot
 
-- Implemented: monorepo bootstrap + platform foundations (no core product business flows yet).
-- Planned: auth hardening, lifecycle enforcement, real trust/ledger workflows, moderation execution logic.
-- Principle: scalable modular monolith first; defer microservice split until operational need.
+- Platform: ContriSkill collaborative contribution platform.
+- Current state: monorepo foundations, auth/session flow, contribution workflows, realtime/presence foundations, and productized workspace UX are implemented.
+- Principle: preserve modular boundaries while hardening workflow clarity and operational safety.
 
 ## 4) Monorepo Structure Summary
 
-- `apps/api`: API server foundation, middleware/route scaffolding.
-- `apps/web`: Next.js web foundation, provider/routing shells.
-- `packages/*`: shared contracts/constants/config/ui primitives.
-- `docs/*`: product/architecture/engineering/design governance source of truth.
-- `.github/*`: issue/PR templates and CI workflow baseline.
+- `apps/api`: API modules, auth/session, contribution services, realtime runtime, persistence boundaries.
+- `apps/web`: Next.js platform UX, session bootstrap, realtime client, contribution workspace surfaces.
+- `packages/contracts`: cross-boundary API and realtime contracts.
+- `packages/config`: shared configuration keys and constants.
+- `packages/domain`: domain types, policies, and shared business structures.
+- `packages/ui`: visual primitives, tokens, theme surfaces.
+- `packages/utils`: shared utility helpers.
+- `database`: migrations and data-layer support files.
+- `docs`: product, architecture, engineering, design, and governance docs.
 
-## 5) Shared Package Responsibilities
+## 5) Required Pre-Flight Commands For Codex
 
-- `packages/config`: shared environment key contracts and configuration constants.
-- `packages/contracts` (if present): cross-boundary API/domain contract types.
-- `packages/ui`: design tokens + reusable primitives + theme provider shell.
-- `packages/*` rule: no app-specific business coupling; keep interfaces reusable.
+Run these before implementation:
 
-## 6) Sprint 1 Completed Foundations
+```powershell
+git rev-parse --show-toplevel
+git branch --show-current
+git status --short --branch
+git worktree list
+```
 
-- Shared constants/contracts baseline.
-- Typed env validation (API + Web) with fail-fast loading.
-- API auth scaffolding (module boundaries, routes/controllers, guard middleware shells).
-- Web API client foundation (typed HTTP + error normalization + client shells).
-- Provider hierarchy foundation.
-- Route group strategy + protected-route wrappers.
-- UI design tokens + primitive UI foundation.
-- Sprint 1 stabilization pass completed.
+If the path, branch, or worktree looks wrong, stop and relaunch in the correct workspace.
 
-## 7) Sprint 2 Planning Status
+## 6) Validation Baseline
 
-- Planning pack created in `docs/03-engineering/sprint2/`.
-- Includes roadmap, auth architecture, lifecycle rules, DB relationship validation, events, roles/permissions, moderation boundaries, AI boundaries.
-- Status: planning complete, implementation not started.
+Typical commands:
 
-## 8) Current Design-System Philosophy
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test`
+- `npm run ci`
 
-- Calm, professional, trust-oriented interface direction.
-- Strong spacing/typography rhythm and soft elevation.
-- Reusable primitive-first composition over page-specific styling.
-- Token-driven consistency across apps.
+Run the smallest scope that proves the change safely when the task allows it.
 
-## 9) Current Routing/Provider Architecture
+## 7) Safe Startup Checklist For New Codex Sessions
 
-- Route groups: `(public)`, `(auth)`, `(app)`.
-- Wrapper utilities: require-auth, redirect-if-auth, require-role shells.
-- Provider composition: env provider + API client provider + session provider shell.
-- Security note: web wrappers are UX gates; API remains enforcement boundary.
+- Confirm the repo root is `D:\Dev\src\products\ContriSkill-main` or the intended `ContriSkill-<phase>` worktree.
+- Confirm the branch matches the requested scope.
+- Read `README.md` and the relevant docs for the target area.
+- Read `docs/03-engineering/repository-governance/README.md` for workspace rules.
+- Check for dirty files before starting.
+- Use a plan for multi-step tasks.
 
-## 10) Current Auth Strategy Direction
+## 8) Common Mistakes To Avoid
 
-- Direction: server-authoritative session model with revocation and actor injection.
-- Planned transport: secure cookie-based session handling.
-- API policy chain: request actor -> auth guard -> role/policy guard.
-- Current state: scaffolding exists; real auth/session persistence deferred.
+- editing inside the old `D:\Dev\src\products\ContriSkill` workspace,
+- assuming a similarly named folder is a Git repo,
+- running Codex from a detached temporary worktree,
+- trusting the editor title bar without verifying the actual Git root.
 
-## 11) Current DB Architecture Direction
+## 9) Reusable Refresh Prompt
 
-- Direction: auditable relational model for users, contributions, collaborations, verification, reviews, credits, reputation, moderation, audit logs.
-- Ledger/event principles: append-only for trust-impacting records.
-- Focus: explicit constraints, idempotent settlement boundaries, query-driven indexing.
-- Current state: architecture docs defined; schema implementation deferred.
+> Refresh ContriSkill repository context from `D:\Dev\src\products\ContriSkill-main` in read-only mode.  
+> Review `README.md`, `docs/00-overview/*`, `docs/02-architecture/*`, `docs/03-engineering/*`, `apps/api/*`, `apps/web/*`, `packages/*`, and root configs.  
+> Report implemented vs planned status, active governance rules, current branch/worktree safety, and the safest next step.
 
-## 12) Current Moderation/AI Boundary Direction
+## 10) Key References
 
-- Moderation: policy-bounded actions with mandatory audit trail.
-- AI: advisory-only direction for future phases; no autonomous trust decisions.
-- Human review required for verification outcomes, moderation resolutions, trust penalties.
-
-## 13) Current Validation Workflow
-
-- Baseline commands:
-  - `npm run lint`
-  - `npm run typecheck`
-  - `npm run test`
-  - `npm run dev`
-- Use workspace-scoped runs for focused checks when needed.
-- Validate after each bounded step to keep integration stable.
-
-## 14) Branch Strategy / Workflow
-
-- Create focused branches per sprint step or bounded scope.
-- Keep commits small, dependency-ordered, and reversible.
-- Rebase/merge main frequently to reduce drift.
-- Documentation and implementation changes should be traceable to checklist steps.
-
-## 15) Commit / PR Conventions
-
-- Use concise conventional-style intent (aligned with repo docs).
-- PRs must include:
-  - what changed,
-  - why,
-  - validation run/output,
-  - deferred items/open decisions.
-- Do not overstate completion; clearly separate implemented vs planned.
-
-## 16) Runtime / Dev Commands
-
-- Install: `npm install`
-- Dev (all workspaces): `npm run dev`
-- Lint: `npm run lint`
-- Typecheck: `npm run typecheck`
-- Test: `npm run test`
-- Web-only test example: `npm run test --workspace @contriskill/web`
-
-## 17) Important Implementation Constraints
-
-- Do not mix feature delivery with foundation-only steps.
-- Preserve monorepo boundaries and shared package discipline.
-- API security checks must live server-side, never web-only.
-- Keep trust/ledger/reputation paths deterministic and auditable.
-
-## 18) Explicitly Deferred Systems
-
-- Real auth persistence details (beyond current scaffold).
-- OAuth/social login.
-- Full contribution engine execution logic.
-- Messaging/realtime collaboration features.
-- Advanced reputation scoring and anti-fraud automation.
-- Production deployment hardening beyond current baseline.
-
-## 19) Current Recommended Implementation Order
-
-1. Finalize Sprint 2 policy decisions (`OPEN DECISION` closure pass).
-2. Implement real auth/session lifecycle in API + web integration.
-3. Implement core DB schema + migration baseline aligned with lifecycle.
-4. Implement contribution lifecycle endpoints/services with guard enforcement.
-5. Add verification/dispute/moderation execution flows + audit guarantees.
-6. Add settlement flows (credits/reputation) with idempotency.
-7. Add notification/outbox and observability instrumentation.
-
-## 20) Do Not Implement Yet
-
-- Automated trust penalties.
-- AI-driven verification or moderation outcomes.
-- Complex multi-party settlement logic.
-- Feature-rich dashboards/pages before lifecycle backend integrity is in place.
-
-## 21) Safe Startup Checklist for New Codex Sessions
-
-- Confirm branch and `git status` clean state.
-- Read current `README.md`.
-- Read Sprint 1 checklist + Sprint 2 planning pack.
-- Identify requested scope and ensure no prohibited system is touched.
-- Update plan first for multi-step tasks.
-- Execute smallest valid increment and run required validation commands.
-- Summarize changed files + remaining open decisions.
-
-## Reusable Refresh Prompt
-
-Use this prompt at session start:
-
-> Refresh ContriSkill repository context from `D:/Dev/src/products/ContriSkill` in read-only mode.  
-> Review `README.md`, `docs/00-overview/*`, `docs/01-product/*`, `docs/02-architecture/*`, `docs/03-engineering/*`, `docs/04-design/*`, `apps/api/*`, `apps/web/*`, `packages/*`, `.github/*`, and root configs.  
-> Produce IMPLEMENTED vs PLANNED status, open decisions, current safe next step, systems not ready, and recommended next branch/prompt.
-
-## Key References
-
-- `D:/Dev/src/products/ContriSkill/README.md`
-- `D:/Dev/src/products/ContriSkill/docs/01-product/product-spec.md`
-- `D:/Dev/src/products/ContriSkill/docs/01-product/contribution-engine.md`
-- `D:/Dev/src/products/ContriSkill/docs/02-architecture/database-design.md`
-- `D:/Dev/src/products/ContriSkill/docs/02-architecture/api-spec.md`
-- `D:/Dev/src/products/ContriSkill/docs/03-engineering/mvp-implementation-blueprint.md`
-- `D:/Dev/src/products/ContriSkill/docs/03-engineering/phase1-execution-plan.md`
-- `D:/Dev/src/products/ContriSkill/docs/03-engineering/sprint1-checklist.md`
-- `D:/Dev/src/products/ContriSkill/docs/03-engineering/sprint2/README.md`
-- `D:/Dev/src/products/ContriSkill/docs/04-design/design-direction.md`
-
-## Recommended Reading Order
-
-1. `README.md`
-2. `docs/00-overview/codex-context-refresh.md`
-3. `docs/01-product/contribution-engine.md`
-4. `docs/02-architecture/database-design.md`
-5. `docs/02-architecture/api-spec.md`
-6. `docs/03-engineering/mvp-implementation-blueprint.md`
-7. `docs/03-engineering/phase1-execution-plan.md`
-8. `docs/03-engineering/sprint1-checklist.md`
-9. `docs/03-engineering/sprint2/README.md`
-10. `docs/04-design/design-direction.md`
+- `D:\Dev\src\products\ContriSkill-main\README.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\00-overview\repository-structure.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\README.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\worktree-management.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\branch-hygiene.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\codex-workflow.md`
+- `D:\Dev\src\products\ContriSkill-main\docs\03-engineering\repository-governance\local-cleanup-plan.md`
