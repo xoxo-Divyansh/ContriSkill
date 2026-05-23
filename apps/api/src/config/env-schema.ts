@@ -53,7 +53,10 @@ const getOptionalString = (raw: NodeJS.ProcessEnv, key: string): string | undefi
 const getRequiredString = (raw: NodeJS.ProcessEnv, key: string): string => {
   const value = getOptionalString(raw, key);
   if (!value) {
-    throw new Error(`[env] Missing required environment variable "${key}".`);
+    throw new Error(
+      `[env] Missing required environment variable "${key}". ` +
+        `Set it in apps/api/.env.local (see apps/api/.env.example).`
+    );
   }
   return value;
 };
@@ -119,6 +122,18 @@ export type ApiEnv = {
   jwtRefreshSecret?: string;
 };
 
+export type ApiStartupDiagnostics = {
+  nodeEnv: NodeEnv;
+  logLevel: LogLevel;
+  port: number;
+  wsCorsOrigin: string;
+  sessionTtlMinutes: number;
+  hasDatabaseUrl: boolean;
+  hasJwtAccessSecret: boolean;
+  hasJwtRefreshSecret: boolean;
+  authMode: "database" | "stateless";
+};
+
 export const parseApiEnv = (raw: NodeJS.ProcessEnv): ApiEnv => {
   const nodeEnv = getNodeEnv(raw);
   getRequiredProductionSecrets(raw, nodeEnv);
@@ -153,4 +168,23 @@ export const parseApiEnv = (raw: NodeJS.ProcessEnv): ApiEnv => {
   }
 
   return env;
+};
+
+export const getApiStartupDiagnostics = (env: ApiEnv): ApiStartupDiagnostics => {
+  const hasDatabaseUrl = Boolean(env.databaseUrl);
+  const hasJwtAccessSecret = Boolean(env.jwtAccessSecret);
+  const hasJwtRefreshSecret = Boolean(env.jwtRefreshSecret);
+  const authMode = hasDatabaseUrl ? "database" : "stateless";
+
+  return {
+    nodeEnv: env.nodeEnv,
+    logLevel: env.logLevel,
+    port: env.port,
+    wsCorsOrigin: env.wsCorsOrigin,
+    sessionTtlMinutes: env.sessionTtlMinutes,
+    hasDatabaseUrl,
+    hasJwtAccessSecret,
+    hasJwtRefreshSecret,
+    authMode
+  };
 };

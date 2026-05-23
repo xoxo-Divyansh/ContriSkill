@@ -28,7 +28,7 @@ describe("getWebEnv", () => {
     const { getWebEnv } = await import("../src/config/env");
 
     expect(() => getWebEnv()).toThrow(
-      '[env] Missing required environment variable "NEXT_PUBLIC_API_BASE_URL".'
+      '[env] Missing required environment variable "NEXT_PUBLIC_API_BASE_URL". Set it in apps/web/.env.local (see apps/web/.env.example).'
     );
   });
 });

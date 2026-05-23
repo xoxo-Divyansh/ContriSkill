@@ -15,6 +15,8 @@ describe("parseWebEnv", () => {
   });
 
   it("fails fast when NEXT_PUBLIC_API_BASE_URL is missing", () => {
-    expect(() => parseWebEnv({})).toThrow();
+    expect(() => parseWebEnv({})).toThrow(
+      '[env] Missing required environment variable "NEXT_PUBLIC_API_BASE_URL". Set it in apps/web/.env.local (see apps/web/.env.example).'
+    );
   });
 });

@@ -1,6 +1,14 @@
-import { parseWebEnv, type WebEnv, type WebRuntimeEnv } from "./env-schema";
+import {
+  getWebStartupDiagnostics,
+  parseWebEnv,
+  type WebEnv,
+  type WebRuntimeEnv,
+  type WebStartupDiagnostics
+} from "./env-schema";
 
 let cachedEnv: WebEnv | undefined;
+let cachedRuntimeEnv: WebRuntimeEnv | undefined;
+let hasLoggedStartupDiagnostics = false;
 
 const readWebRuntimeEnv = (): WebRuntimeEnv => {
   return {
@@ -18,8 +26,24 @@ const readWebRuntimeEnv = (): WebRuntimeEnv => {
 
 export const getWebEnv = (): WebEnv => {
   if (!cachedEnv) {
-    cachedEnv = parseWebEnv(readWebRuntimeEnv());
+    cachedRuntimeEnv = readWebRuntimeEnv();
+    cachedEnv = parseWebEnv(cachedRuntimeEnv);
+  }
+
+  if (!hasLoggedStartupDiagnostics && process.env.NODE_ENV !== "production") {
+    const startupDiagnostics = getWebStartupDiagnostics(
+      cachedEnv,
+      cachedRuntimeEnv ?? readWebRuntimeEnv()
+    );
+    console.info("[env] Web runtime configuration validated.", startupDiagnostics);
+    hasLoggedStartupDiagnostics = true;
   }
 
   return cachedEnv;
+};
+
+export const describeWebEnvStartup = (): WebStartupDiagnostics => {
+  const runtimeEnv = cachedRuntimeEnv ?? readWebRuntimeEnv();
+  const env = cachedEnv ?? parseWebEnv(runtimeEnv);
+  return getWebStartupDiagnostics(env, runtimeEnv);
 };

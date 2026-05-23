@@ -17,6 +17,8 @@ describe("parseApiEnv", () => {
   });
 
   it("requires production secrets in production mode", () => {
-    expect(() => parseApiEnv({ NODE_ENV: "production" })).toThrow();
+    expect(() => parseApiEnv({ NODE_ENV: "production" })).toThrow(
+      '[env] Missing required environment variable "DATABASE_URL". Set it in apps/api/.env.local (see apps/api/.env.example).'
+    );
   });
 });
