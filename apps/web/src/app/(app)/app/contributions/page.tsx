@@ -12,8 +12,8 @@ import {
 } from "../../../../components/workspace/workspace-foundation";
 import styles from "../../../../components/workspace/workspace-foundation.module.css";
 import type { ContributionPost } from "../../../../lib/api/contribution-client";
-import { ApiClientError } from "../../../../lib/api/types";
 import { contributionListSubscription } from "../../../../lib/realtime/subscriptions";
+import { toUserFacingApiErrorMessage } from "../../../../lib/ui/error-messaging";
 import { getRealtimeLabel, resolveRealtimeTone } from "../../../../lib/ui/workspace-status";
 import { useApiClient } from "../../../../providers/api-client-provider";
 import {
@@ -37,13 +37,8 @@ const contributionTypes: ContributionType[] = [
 
 const contributionDifficulties: ContributionDifficulty[] = ["low", "medium", "high"];
 
-const normalizeApiErrorMessage = (error: unknown, fallback: string): string => {
-  if (error instanceof ApiClientError) {
-    return error.message;
-  }
-
-  return fallback;
-};
+const normalizeApiErrorMessage = (error: unknown, fallback: string): string =>
+  toUserFacingApiErrorMessage(error, fallback);
 
 const formatContributionLabel = (value: string) => {
   return value
@@ -54,7 +49,8 @@ const formatContributionLabel = (value: string) => {
 
 export default function ContributionsPage() {
   const { contributionClient } = useApiClient();
-  const { session, isReady } = useSession();
+  const { session, isReady, restoreFailed, restoreMessage, bootstrapFailed, bootstrapMessage } =
+    useSession();
   const realtime = useRealtime();
 
   const [title, setTitle] = useState("");
@@ -222,6 +218,18 @@ export default function ContributionsPage() {
     }
   };
 
+  const onRetryListLoad = async () => {
+    setErrorMessage(undefined);
+    setIsLoading(true);
+    try {
+      await loadContributions();
+    } catch (error) {
+      setErrorMessage(normalizeApiErrorMessage(error, "Failed to load contributions."));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const onResetFilters = () => {
     setSearchQuery("");
     setStateFilter("");
@@ -263,6 +271,26 @@ export default function ContributionsPage() {
             {!isReady ? (
               <Text variant="caption" tone="warning">
                 Restoring saved session context before the workspace settles.
+              </Text>
+            ) : null}
+            {restoreFailed && restoreMessage ? (
+              <Text variant="caption" tone="danger">
+                {restoreMessage}
+              </Text>
+            ) : null}
+            {bootstrapFailed && bootstrapMessage ? (
+              <Text variant="caption" tone="danger">
+                {bootstrapMessage}
+              </Text>
+            ) : null}
+            {realtime.state === "reconnecting" ? (
+              <Text variant="caption" tone="warning">
+                Realtime updates are reconnecting. New activity may be delayed.
+              </Text>
+            ) : null}
+            {realtime.state === "disconnected" ? (
+              <Text variant="caption" tone="danger">
+                Realtime is offline. You can keep working and retry actions manually.
               </Text>
             ) : null}
           </WorkspacePanel>
@@ -499,6 +527,11 @@ export default function ContributionsPage() {
           title="The contribution workspace could not finish a request"
           description={errorMessage}
           subtle
+          actions={
+            <Button variant="secondary" onClick={() => void onRetryListLoad()}>
+              Retry Request
+            </Button>
+          }
         >
           <StatusBadge label="Action needed" tone="danger" />
         </WorkspacePanel>

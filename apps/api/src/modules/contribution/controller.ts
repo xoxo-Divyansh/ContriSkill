@@ -1,6 +1,8 @@
 import type { ContributionPost } from "@contriskill/domain";
 import type { Request, Response } from "express";
 
+import { sendApiError } from "../../api-error";
+
 import type {
   AcceptApplicationResponse,
   CancelContributionResponse,
@@ -37,38 +39,22 @@ const httpStatus = {
   conflict: 409
 } as const;
 
-const sendError = (
-  response: Response<ContributionErrorResponse>,
-  status: number,
-  code: ContributionErrorResponse["error"]["code"],
-  message: string,
-  details?: Record<string, string | number | boolean>
-): void => {
-  response.status(status).json({
-    error: {
-      code,
-      message,
-      ...(details ? { details } : {})
-    }
-  });
-};
-
 const mapServiceErrorToHttp = (
   response: Response<ContributionErrorResponse>,
   error: ContributionServiceError
 ): void => {
   switch (error.code) {
     case "CONTRIBUTION_UNAUTHENTICATED":
-      sendError(response, httpStatus.unauthorized, "UNAUTHENTICATED", error.message, error.details);
+      sendApiError(response, httpStatus.unauthorized, "UNAUTHENTICATED", error.message, error.details);
       return;
     case "CONTRIBUTION_FORBIDDEN":
-      sendError(response, httpStatus.forbidden, "FORBIDDEN", error.message, error.details);
+      sendApiError(response, httpStatus.forbidden, "FORBIDDEN", error.message, error.details);
       return;
     case "CONTRIBUTION_NOT_FOUND":
-      sendError(response, httpStatus.notFound, "NOT_FOUND", error.message, error.details);
+      sendApiError(response, httpStatus.notFound, "NOT_FOUND", error.message, error.details);
       return;
     case "CONTRIBUTION_VALIDATION_FAILED":
-      sendError(
+      sendApiError(
         response,
         httpStatus.unprocessableEntity,
         "VALIDATION_ERROR",
@@ -77,10 +63,10 @@ const mapServiceErrorToHttp = (
       );
       return;
     case "CONTRIBUTION_CONFLICT":
-      sendError(response, httpStatus.conflict, "STATE_CONFLICT", error.message, error.details);
+      sendApiError(response, httpStatus.conflict, "STATE_CONFLICT", error.message, error.details);
       return;
     default:
-      sendError(response, httpStatus.conflict, "STATE_CONFLICT", "Contribution operation failed.");
+      sendApiError(response, httpStatus.conflict, "STATE_CONFLICT", "Contribution operation failed.");
   }
 };
 
@@ -133,7 +119,7 @@ export class ContributionController {
     const rawLimit = typeof request.query.limit === "string" ? request.query.limit : undefined;
     const limit = rawLimit ? Number(rawLimit) : 20;
     if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
-      sendError(
+      sendApiError(
         response,
         httpStatus.unprocessableEntity,
         "VALIDATION_ERROR",
@@ -145,7 +131,7 @@ export class ContributionController {
     const cursorRaw = typeof request.query.cursor === "string" ? request.query.cursor : undefined;
     const cursor = cursorRaw ? this.decodeCursor(cursorRaw) : undefined;
     if (cursorRaw && !cursor) {
-      sendError(response, httpStatus.unprocessableEntity, "VALIDATION_ERROR", "cursor is invalid.");
+      sendApiError(response, httpStatus.unprocessableEntity, "VALIDATION_ERROR", "cursor is invalid.");
       return;
     }
 
@@ -200,7 +186,7 @@ export class ContributionController {
   ): Promise<void> => {
     const postId = getPathParam(request.params.postId);
     if (!postId) {
-      sendError(
+      sendApiError(
         response,
         httpStatus.unprocessableEntity,
         "VALIDATION_ERROR",
@@ -212,7 +198,7 @@ export class ContributionController {
     try {
       const post = await this.queryService.getContributionById(request.actor, postId);
       if (!post) {
-        sendError(response, httpStatus.notFound, "NOT_FOUND", "Contribution post not found.");
+        sendApiError(response, httpStatus.notFound, "NOT_FOUND", "Contribution post not found.");
         return;
       }
 
@@ -236,7 +222,7 @@ export class ContributionController {
   ): Promise<void> => {
     const validation = validateCreateContributionBody(request.body);
     if (!validation.ok) {
-      sendError(response, httpStatus.unprocessableEntity, "VALIDATION_ERROR", validation.message);
+      sendApiError(response, httpStatus.unprocessableEntity, "VALIDATION_ERROR", validation.message);
       return;
     }
 
@@ -263,14 +249,14 @@ export class ContributionController {
   ): Promise<void> => {
     const validation = validateUpdateContributionBody(request.body);
     if (!validation.ok) {
-      sendError(response, httpStatus.unprocessableEntity, "VALIDATION_ERROR", validation.message);
+      sendApiError(response, httpStatus.unprocessableEntity, "VALIDATION_ERROR", validation.message);
       return;
     }
 
     try {
       const postId = getPathParam(request.params.postId);
       if (!postId) {
-        sendError(
+        sendApiError(
           response,
           httpStatus.unprocessableEntity,
           "VALIDATION_ERROR",
@@ -301,14 +287,14 @@ export class ContributionController {
   ): Promise<void> => {
     const validation = validateCancelContributionBody(request.body);
     if (!validation.ok) {
-      sendError(response, httpStatus.unprocessableEntity, "VALIDATION_ERROR", validation.message);
+      sendApiError(response, httpStatus.unprocessableEntity, "VALIDATION_ERROR", validation.message);
       return;
     }
 
     try {
       const postId = getPathParam(request.params.postId);
       if (!postId) {
-        sendError(
+        sendApiError(
           response,
           httpStatus.unprocessableEntity,
           "VALIDATION_ERROR",
@@ -343,14 +329,14 @@ export class ContributionController {
   ): Promise<void> => {
     const validation = validateTransitionContributionBody(request.body);
     if (!validation.ok) {
-      sendError(response, httpStatus.unprocessableEntity, "VALIDATION_ERROR", validation.message);
+      sendApiError(response, httpStatus.unprocessableEntity, "VALIDATION_ERROR", validation.message);
       return;
     }
 
     try {
       const postId = getPathParam(request.params.postId);
       if (!postId) {
-        sendError(
+        sendApiError(
           response,
           httpStatus.unprocessableEntity,
           "VALIDATION_ERROR",
@@ -384,14 +370,14 @@ export class ContributionController {
   ): Promise<void> => {
     const validation = validateSubmitApplicationBody(request.body);
     if (!validation.ok) {
-      sendError(response, httpStatus.unprocessableEntity, "VALIDATION_ERROR", validation.message);
+      sendApiError(response, httpStatus.unprocessableEntity, "VALIDATION_ERROR", validation.message);
       return;
     }
 
     try {
       const postId = getPathParam(request.params.postId);
       if (!postId) {
-        sendError(
+        sendApiError(
           response,
           httpStatus.unprocessableEntity,
           "VALIDATION_ERROR",
@@ -427,7 +413,7 @@ export class ContributionController {
       const postId = getPathParam(request.params.postId);
       const applicationId = getPathParam(request.params.applicationId);
       if (!postId || !applicationId) {
-        sendError(
+        sendApiError(
           response,
           httpStatus.unprocessableEntity,
           "VALIDATION_ERROR",

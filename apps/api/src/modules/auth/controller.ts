@@ -1,12 +1,11 @@
 import type { Request, Response } from "express";
 
+import { sendApiError } from "../../api-error";
 import { resolveAccessTokenFromRequest } from "../../middleware/request-actor";
 
 import { AuthIdentityRuntimeError } from "./identity";
 import type { AuthService } from "./service";
 import type { RequestWithActor } from "./types";
-
-type ApiErrorCode = "UNAUTHENTICATED" | "FORBIDDEN" | "VALIDATION_ERROR" | "STATE_CONFLICT";
 
 const httpStatus = {
   accepted: 202,
@@ -16,20 +15,6 @@ const httpStatus = {
   badRequest: 400,
   conflict: 409
 } as const;
-
-const sendError = (
-  response: Response,
-  status: (typeof httpStatus)[keyof typeof httpStatus],
-  code: ApiErrorCode,
-  message: string
-): void => {
-  response.status(status).json({
-    error: {
-      code,
-      message
-    }
-  });
-};
 
 export class AuthController {
   constructor(private readonly service: AuthService) {}
@@ -42,7 +27,7 @@ export class AuthController {
     }>;
 
     if (!email || !password || !username) {
-      sendError(
+      sendApiError(
         response,
         httpStatus.badRequest,
         "VALIDATION_ERROR",
@@ -56,7 +41,7 @@ export class AuthController {
       response.status(httpStatus.accepted).json(payload);
     } catch (error) {
       if (error instanceof AuthIdentityRuntimeError && error.code === "IDENTITY_ALREADY_EXISTS") {
-        sendError(response, httpStatus.conflict, "STATE_CONFLICT", error.message);
+        sendApiError(response, httpStatus.conflict, "STATE_CONFLICT", error.message);
         return;
       }
       throw error;
@@ -70,7 +55,7 @@ export class AuthController {
     }>;
 
     if (!identifier || !password) {
-      sendError(
+      sendApiError(
         response,
         httpStatus.badRequest,
         "VALIDATION_ERROR",
@@ -84,7 +69,7 @@ export class AuthController {
       response.status(httpStatus.accepted).json(payload);
     } catch (error) {
       if (error instanceof AuthIdentityRuntimeError && error.code === "INVALID_CREDENTIALS") {
-        sendError(response, httpStatus.unauthorized, "UNAUTHENTICATED", error.message);
+        sendApiError(response, httpStatus.unauthorized, "UNAUTHENTICATED", error.message);
         return;
       }
       throw error;
@@ -93,7 +78,7 @@ export class AuthController {
 
   refresh = async (request: RequestWithActor, response: Response): Promise<void> => {
     if (!request.actor) {
-      sendError(
+      sendApiError(
         response,
         httpStatus.unauthorized,
         "UNAUTHENTICATED",
@@ -110,7 +95,7 @@ export class AuthController {
 
   logout = async (request: RequestWithActor, response: Response): Promise<void> => {
     if (!request.actor) {
-      sendError(
+      sendApiError(
         response,
         httpStatus.unauthorized,
         "UNAUTHENTICATED",
@@ -128,7 +113,7 @@ export class AuthController {
 
   session = async (request: RequestWithActor, response: Response): Promise<void> => {
     if (!request.actor) {
-      sendError(
+      sendApiError(
         response,
         httpStatus.unauthorized,
         "UNAUTHENTICATED",

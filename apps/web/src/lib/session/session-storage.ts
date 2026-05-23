@@ -19,22 +19,41 @@ const isSessionSnapshot = (value: unknown): value is SessionSnapshot => {
   );
 };
 
-export const loadSessionSnapshot = (): SessionSnapshot | undefined => {
+export const loadSessionSnapshotWithDiagnostics = (): {
+  snapshot?: SessionSnapshot;
+  restoreFailed: boolean;
+  restoreMessage?: string;
+} => {
   if (!isBrowser()) {
-    return undefined;
+    return { restoreFailed: false };
   }
 
   const raw = window.localStorage.getItem(sessionStorageKey);
   if (!raw) {
-    return undefined;
+    return { restoreFailed: false };
   }
 
   try {
     const parsed = JSON.parse(raw) as unknown;
-    return isSessionSnapshot(parsed) ? parsed : undefined;
+    if (isSessionSnapshot(parsed)) {
+      return { snapshot: parsed, restoreFailed: false };
+    }
+
+    return {
+      restoreFailed: true,
+      restoreMessage: "Saved session data was invalid and could not be restored."
+    };
   } catch {
-    return undefined;
+    return {
+      restoreFailed: true,
+      restoreMessage: "Saved session data could not be read."
+    };
   }
+};
+
+export const loadSessionSnapshot = (): SessionSnapshot | undefined => {
+  const result = loadSessionSnapshotWithDiagnostics();
+  return result.snapshot;
 };
 
 export const saveSessionSnapshot = (session: SessionSnapshot): void => {

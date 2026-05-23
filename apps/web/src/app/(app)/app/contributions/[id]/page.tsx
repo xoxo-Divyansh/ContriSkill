@@ -23,6 +23,9 @@ import {
 } from "../../../../../lib/realtime/subscriptions";
 import { useContributionWorkspaceSessions } from "../../../../../lib/realtime/workspace-sessions";
 import {
+  toUserFacingApiErrorMessage
+} from "../../../../../lib/ui/error-messaging";
+import {
   formatSyncSummary,
   getRealtimeLabel,
   getSyncSurfaceLabel,
@@ -44,13 +47,8 @@ type ContributionDetailPageProps = {
   };
 };
 
-const normalizeApiErrorMessage = (error: unknown, fallback: string): string => {
-  if (error instanceof ApiClientError) {
-    return error.message;
-  }
-
-  return fallback;
-};
+const normalizeApiErrorMessage = (error: unknown, fallback: string): string =>
+  toUserFacingApiErrorMessage(error, fallback);
 
 const formatContributionLabel = (value: string) => {
   return value
@@ -77,7 +75,8 @@ const resolveSyncTone = (isSyncing: boolean, error?: string, status?: string) =>
 
 export default function ContributionDetailPage({ params }: ContributionDetailPageProps) {
   const { contributionClient, draftClient, projectionClient } = useApiClient();
-  const { session, isReady } = useSession();
+  const { session, isReady, restoreFailed, restoreMessage, bootstrapFailed, bootstrapMessage } =
+    useSession();
   const realtime = useRealtime();
   const presence = useContributionPresence(params.id);
   const workspaceSessions = useContributionWorkspaceSessions(params.id);
@@ -430,6 +429,10 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
     }
   };
 
+  const onRetryDetailLoad = async () => {
+    await Promise.all([loadContributionDetail(), loadDraftSnapshot(), loadProjectionSnapshot()]);
+  };
+
   const realtimeTone =
     resolveRealtimeTone(realtime.state) === "success"
       ? "success"
@@ -476,6 +479,31 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
             {!isReady ? (
               <Text variant="caption" tone="warning">
                 Restoring saved session context for this workspace.
+              </Text>
+            ) : null}
+            {restoreFailed && restoreMessage ? (
+              <Text variant="caption" tone="danger">
+                {restoreMessage}
+              </Text>
+            ) : null}
+            {bootstrapFailed && bootstrapMessage ? (
+              <Text variant="caption" tone="danger">
+                {bootstrapMessage}
+              </Text>
+            ) : null}
+            {realtime.state === "reconnecting" ? (
+              <Text variant="caption" tone="warning">
+                Realtime is reconnecting. Workspace updates may arrive late.
+              </Text>
+            ) : null}
+            {realtime.state === "disconnected" ? (
+              <Text variant="caption" tone="danger">
+                Realtime is disconnected. You can continue and sync manually.
+              </Text>
+            ) : null}
+            {draftPendingCount + projectionPendingCount > 0 ? (
+              <Text variant="caption" tone="warning">
+                Sync is delayed. Pending changes: {draftPendingCount + projectionPendingCount}.
               </Text>
             ) : null}
           </WorkspacePanel>
@@ -787,6 +815,11 @@ export default function ContributionDetailPage({ params }: ContributionDetailPag
           title="The workspace hit an error"
           description={errorMessage}
           subtle
+          actions={
+            <Button variant="secondary" onClick={() => void onRetryDetailLoad()}>
+              Retry Workspace Load
+            </Button>
+          }
         >
           <StatusBadge label="Action needed" tone="danger" />
         </WorkspacePanel>

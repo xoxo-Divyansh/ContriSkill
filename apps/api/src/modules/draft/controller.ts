@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
 
+import { sendApiError } from "../../api-error";
+
 import type {
   DraftSyncErrorResponse,
   DraftSyncPatchResponse,
@@ -18,23 +20,13 @@ export class DraftSyncController {
     const rawDraftId = request.params.draftId;
     const draftId = typeof rawDraftId === "string" ? rawDraftId.trim() : undefined;
     if (!draftId) {
-      response.status(422).json({
-        error: {
-          code: "VALIDATION_ERROR",
-          message: "draftId is required."
-        }
-      });
+      sendApiError(response, 422, "VALIDATION_ERROR", "draftId is required.");
       return;
     }
 
     const snapshot = this.service.getSnapshotById(draftId);
     if (!snapshot) {
-      response.status(404).json({
-        error: {
-          code: "NOT_FOUND",
-          message: "Draft snapshot not found."
-        }
-      });
+      sendApiError(response, 404, "NOT_FOUND", "Draft snapshot not found.");
       return;
     }
 
@@ -51,12 +43,7 @@ export class DraftSyncController {
   ): void => {
     const validation = validateDraftPatchEnvelope(request.body);
     if (!validation.ok) {
-      response.status(422).json({
-        error: {
-          code: "VALIDATION_ERROR",
-          message: validation.message
-        }
-      });
+      sendApiError(response, 422, "VALIDATION_ERROR", validation.message);
       return;
     }
 
