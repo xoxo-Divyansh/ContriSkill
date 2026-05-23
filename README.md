@@ -153,6 +153,28 @@ npm run typecheck
 npm run test
 ```
 
+## Environment Quick Start
+
+Use app-specific env templates:
+
+- `apps/api/.env.example` -> `apps/api/.env.local`
+- `apps/web/.env.example` -> `apps/web/.env.local`
+
+Required for web local startup:
+
+- `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000`
+
+Realtime URL behavior:
+
+- if `NEXT_PUBLIC_REALTIME_URL` is unset, web derives
+  `ws(s)://<api-host>/api/v1/realtime` from `NEXT_PUBLIC_API_BASE_URL`
+
+Production hardening references:
+
+- `docs/03-engineering/production-hardening/local-run-guide.md`
+- `docs/03-engineering/production-hardening/env-setup-guide.md`
+- `docs/03-engineering/production-hardening/env-troubleshooting.md`
+
 ## Key Documentation
 
 - `docs/03-engineering/mvp-implementation-blueprint.md`

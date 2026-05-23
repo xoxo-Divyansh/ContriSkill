@@ -18,6 +18,8 @@ export type WebRuntimeEnv = {
   NEXT_PUBLIC_REALTIME_URL?: string;
 };
 
+const WEB_ENV_EXAMPLE_PATH = "apps/web/.env.example";
+
 const getOptionalString = (value: string | undefined): string | undefined => {
   if (!value) {
     return undefined;
@@ -30,7 +32,10 @@ const getOptionalString = (value: string | undefined): string | undefined => {
 const getRequiredString = (value: string | undefined, key: string): string => {
   const normalizedValue = getOptionalString(value);
   if (!normalizedValue) {
-    throw new Error(`[env] Missing required environment variable "${key}".`);
+    throw new Error(
+      `[env] Missing required environment variable "${key}". ` +
+        `Set it in apps/web/.env.local (see ${WEB_ENV_EXAMPLE_PATH}).`
+    );
   }
   return normalizedValue;
 };
@@ -39,6 +44,13 @@ export type WebEnv = {
   appName: string;
   apiBaseUrl: string;
   realtimeUrl: string;
+};
+
+export type WebStartupDiagnostics = {
+  appName: string;
+  apiBaseUrl: string;
+  realtimeUrl: string;
+  hasExplicitRealtimeUrl: boolean;
 };
 
 const toWebSocketUrl = (apiBaseUrl: string): string => {
@@ -64,5 +76,17 @@ export const parseWebEnv = (raw: WebRuntimeEnv): WebEnv => {
     appName,
     apiBaseUrl,
     realtimeUrl
+  };
+};
+
+export const getWebStartupDiagnostics = (
+  env: WebEnv,
+  raw: WebRuntimeEnv
+): WebStartupDiagnostics => {
+  return {
+    appName: env.appName,
+    apiBaseUrl: env.apiBaseUrl,
+    realtimeUrl: env.realtimeUrl,
+    hasExplicitRealtimeUrl: Boolean(getOptionalString(raw.NEXT_PUBLIC_REALTIME_URL))
   };
 };
