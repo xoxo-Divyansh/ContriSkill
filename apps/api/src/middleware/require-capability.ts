@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 
+import { sendApiError } from "../api-error";
 import { assertActorCapability } from "../modules/auth/authorization";
 import { AuthorizationError, type AuthCapability } from "../modules/auth/capabilities";
 
@@ -11,12 +12,7 @@ export const requireCapabilityMiddleware = (capability: AuthCapability) => {
     } catch (error) {
       if (error instanceof AuthorizationError) {
         const status = error.code === "UNAUTHENTICATED" ? 401 : 403;
-        response.status(status).json({
-          error: {
-            code: error.code,
-            message: error.message
-          }
-        });
+        sendApiError(response, status, error.code, error.message);
         return;
       }
 

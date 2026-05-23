@@ -15,6 +15,12 @@ export type SessionContextValue = {
   session: SessionSnapshot;
   isAuthenticated: boolean;
   isReady: boolean;
+  restoreFailed: boolean;
+  restoreMessage: string | undefined;
+  bootstrapFailed: boolean;
+  bootstrapMessage: string | undefined;
+  setBootstrapIssue: (message: string) => void;
+  clearBootstrapIssue: () => void;
   setSession: (nextSession: SessionSnapshot) => void;
   clearSession: () => void;
 };

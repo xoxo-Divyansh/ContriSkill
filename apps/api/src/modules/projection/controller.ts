@@ -1,5 +1,7 @@
 import type { Request, Response } from "express";
 
+import { sendApiError } from "../../api-error";
+
 import type {
   ProjectionSyncErrorResponse,
   ProjectionSyncSnapshotResponse,
@@ -18,23 +20,13 @@ export class ProjectionSyncController {
     const rawProjectionId = request.params.projectionId;
     const projectionId = typeof rawProjectionId === "string" ? rawProjectionId.trim() : undefined;
     if (!projectionId) {
-      response.status(422).json({
-        error: {
-          code: "VALIDATION_ERROR",
-          message: "projectionId is required."
-        }
-      });
+      sendApiError(response, 422, "VALIDATION_ERROR", "projectionId is required.");
       return;
     }
 
     const snapshot = this.service.getSnapshotById(projectionId);
     if (!snapshot) {
-      response.status(404).json({
-        error: {
-          code: "NOT_FOUND",
-          message: "Projection snapshot not found."
-        }
-      });
+      sendApiError(response, 404, "NOT_FOUND", "Projection snapshot not found.");
       return;
     }
 
@@ -51,12 +43,7 @@ export class ProjectionSyncController {
   ): void => {
     const validation = validateProjectionUpdateEnvelope(request.body);
     if (!validation.ok) {
-      response.status(422).json({
-        error: {
-          code: "VALIDATION_ERROR",
-          message: validation.message
-        }
-      });
+      sendApiError(response, 422, "VALIDATION_ERROR", validation.message);
       return;
     }
 

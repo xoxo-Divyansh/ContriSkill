@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 
+import { sendApiError } from "../api-error";
 import { assertAuthenticatedActor } from "../modules/auth/authorization";
 import { AuthorizationError } from "../modules/auth/capabilities";
 
@@ -14,12 +15,7 @@ export const requireAuthMiddleware = (
     return;
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      response.status(401).json({
-        error: {
-          code: "UNAUTHENTICATED",
-          message: error.message
-        }
-      });
+      sendApiError(response, 401, "UNAUTHENTICATED", error.message);
       return;
     }
 

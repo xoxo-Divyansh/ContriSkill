@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   clearSessionSnapshot,
   loadSessionSnapshot,
+  loadSessionSnapshotWithDiagnostics,
   saveSessionSnapshot
 } from "../src/lib/session/session-storage";
 import type { SessionSnapshot } from "../src/types/session";
@@ -57,6 +58,20 @@ describe("session storage", () => {
       expect(loadSessionSnapshot()).toEqual(session);
       clearSessionSnapshot();
       expect(loadSessionSnapshot()).toBeUndefined();
+    });
+  });
+
+  it("reports restore failure for malformed saved session payload", () => {
+    withWindowStorage(() => {
+      const windowStub = (globalThis as Record<string, unknown>).window as {
+        localStorage: LocalStorageStub;
+      };
+      windowStub.localStorage.setItem("contriskill.session.v1", "{bad-json");
+
+      const result = loadSessionSnapshotWithDiagnostics();
+      expect(loadSessionSnapshot()).toBeUndefined();
+      expect(result.restoreFailed).toBe(true);
+      expect(result.restoreMessage).toBeDefined();
     });
   });
 });
