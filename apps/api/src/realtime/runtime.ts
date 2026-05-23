@@ -61,6 +61,15 @@ const getReconnectToken = (url: URL): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const getCorrelationId = (url: URL): string | undefined => {
+  const value = url.searchParams.get("cid");
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= 128 ? trimmed : undefined;
+};
+
 const createEvent = <TPayload>(
   eventName: RealtimeEventEnvelope<TPayload>["eventName"],
   scope: RealtimeScope,
@@ -118,6 +127,7 @@ export const createRealtimeRuntime = ({
   let heartbeatTimer: NodeJS.Timeout | undefined;
 
   const onUnauthorized = (client: RealtimeClientHandle, message: string): void => {
+    diagnostics.increment("unauthenticatedRejects");
     diagnostics.increment("rejectedEvents");
     client.send(
       createEvent(
@@ -698,14 +708,21 @@ export const createRealtimeRuntime = ({
   transport.onUpgrade(async (event) => {
     cleanupDisconnectedSnapshots();
     const requestUrl = new URL(event.request.url ?? "/", "http://localhost");
+    const correlationId = getCorrelationId(requestUrl);
     const token = getSessionToken(requestUrl);
     const reconnectToken = getReconnectToken(requestUrl);
     const actor = await sessionResolver.resolveActorByAccessToken(token);
 
+    diagnostics.increment("connectionAttempts");
     diagnostics.increment("reconnectAttempts");
 
     if (!actor || actor.actorType !== "authenticated" || actor.sessionState !== "authenticated") {
       event.reject(401, "Unauthorized websocket connection");
+      diagnostics.increment("reconnectTokenMisses");
+      log("warn", "Realtime upgrade rejected due to unauthenticated actor.", {
+        reconnectTokenPresent: Boolean(reconnectToken),
+        correlationId
+      });
       return;
     }
 
@@ -721,6 +738,7 @@ export const createRealtimeRuntime = ({
     const connectionContext: RealtimeConnectionContext = {
       connectionId,
       reconnectToken: restoredReconnectToken ?? `rct_${randomUUID()}`,
+      ...(correlationId ? { correlationId } : {}),
       connectedAt: new Date().toISOString(),
       actor,
       state: "connected",
@@ -729,6 +747,7 @@ export const createRealtimeRuntime = ({
 
     clients.set(connectionId, client);
     registry.register(connectionContext);
+    diagnostics.increment("connectionAccepted");
     inboundSeenEventIdsByConnection.set(connectionId, new Set<string>());
     lastInboundSequenceByConnection.set(connectionId, 0);
 
@@ -778,6 +797,7 @@ export const createRealtimeRuntime = ({
         restoredCount: snapshot?.subscriptions.length ?? 0
       });
     } else if (reconnectToken) {
+      diagnostics.increment("reconnectTokenMisses");
       diagnostics.increment("subscriptionReplayFailures");
       log("warn", "Realtime reconnect token replay not restored.", {
         connectionId,
@@ -788,7 +808,8 @@ export const createRealtimeRuntime = ({
     log("info", "Realtime client connected.", {
       connectionId,
       actorUserId: actor.userId,
-      path: realtimePath
+      path: realtimePath,
+      correlationId
     });
   });
 
@@ -866,9 +887,20 @@ export const createRealtimeRuntime = ({
   };
 
   const getDiagnostics = (): RealtimeDiagnosticsSnapshot => {
+    const activeConnectionSamples = registry.getAllConnections().slice(0, 50).map((connection) => {
+      return {
+        connectionId: connection.connectionId,
+        actorType: connection.actor.actorType,
+        role: connection.actor.role,
+        connectedAt: connection.connectedAt,
+        ...(connection.correlationId ? { correlationId: connection.correlationId } : {})
+      };
+    });
+
     return diagnostics.snapshot({
       activeConnections: registry.getAllConnections().length,
-      reconnectSnapshotCount: disconnectedSubscriptionSnapshot.size
+      reconnectSnapshotCount: disconnectedSubscriptionSnapshot.size,
+      activeConnectionSamples
     });
   };
 

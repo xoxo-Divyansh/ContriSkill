@@ -2,6 +2,8 @@ import type { ApiErrorCode } from "@contriskill/contracts";
 
 import { ApiClientError, type ApiEnvelopeError } from "./types";
 
+const requestIdHeaderName = "x-request-id";
+
 const knownApiErrorCodes: readonly ApiErrorCode[] = [
   "UNAUTHENTICATED",
   "FORBIDDEN",
@@ -34,13 +36,19 @@ const isApiErrorEnvelope = (payload: unknown): payload is ApiEnvelopeError => {
   return typeof error.code === "string" && typeof error.message === "string";
 };
 
-export const normalizeApiError = (status: number, payload: unknown): ApiClientError => {
+export const normalizeApiError = (
+  status: number,
+  payload: unknown,
+  responseHeaders?: Headers
+): ApiClientError => {
+  const correlationId = responseHeaders?.get(requestIdHeaderName) ?? undefined;
   if (!isApiErrorEnvelope(payload)) {
     return new ApiClientError({
       kind: "invalid_response",
       code: "INVALID_RESPONSE",
       status,
-      message: "API returned a non-standard error payload."
+      message: "API returned a non-standard error payload.",
+      ...(correlationId ? { correlationId } : {})
     });
   }
 
@@ -56,11 +64,15 @@ export const normalizeApiError = (status: number, payload: unknown): ApiClientEr
   if (payload.error.details) {
     return new ApiClientError({
       ...input,
+      ...(correlationId ? { correlationId } : {}),
       details: payload.error.details
     });
   }
 
-  return new ApiClientError(input);
+  return new ApiClientError({
+    ...input,
+    ...(correlationId ? { correlationId } : {})
+  });
 };
 
 const isAbortLikeError = (error: unknown): boolean => {

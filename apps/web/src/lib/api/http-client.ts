@@ -8,6 +8,18 @@ import type {
 } from "./types";
 import { ApiClientError } from "./types";
 
+const requestIdHeaderName = "x-request-id";
+
+const createCorrelationId = (): string => {
+  if (
+    typeof globalThis.crypto !== "undefined" &&
+    typeof globalThis.crypto.randomUUID === "function"
+  ) {
+    return `web_${globalThis.crypto.randomUUID()}`;
+  }
+  return `web_${Math.random().toString(16).slice(2)}`;
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === "object" && value !== null;
 };
@@ -120,6 +132,9 @@ export const createHttpClient = (config: ApiClientConfig): HttpClient => {
     if (shouldAttachJsonContentType(options.body, headers)) {
       headers.set("content-type", "application/json");
     }
+    if (!headers.has(requestIdHeaderName)) {
+      headers.set(requestIdHeaderName, createCorrelationId());
+    }
 
     const timeout = options.timeoutMs ?? defaultTimeoutMs;
     const timeoutControl = withTimeoutSignal(options.signal, timeout);
@@ -135,7 +150,7 @@ export const createHttpClient = (config: ApiClientConfig): HttpClient => {
       const parsed = await parseJsonResponse(response);
 
       if (!response.ok) {
-        throw normalizeApiError(response.status, parsed);
+        throw normalizeApiError(response.status, parsed, response.headers);
       }
 
       if (!isSuccessEnvelope<TData>(parsed)) {

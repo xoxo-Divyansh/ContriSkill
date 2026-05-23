@@ -38,6 +38,7 @@ export type ApiClientErrorInput = {
   status?: number;
   details?: Record<string, string | number | boolean>;
   transportErrorKind?: ApiTransportErrorKind;
+  correlationId?: string;
   cause?: unknown;
 };
 
@@ -47,6 +48,7 @@ export class ApiClientError extends Error {
   readonly status: number | undefined;
   readonly details: Record<string, string | number | boolean> | undefined;
   readonly transportErrorKind: ApiTransportErrorKind | undefined;
+  readonly correlationId: string | undefined;
   override readonly cause: unknown;
 
   constructor(input: ApiClientErrorInput) {
@@ -57,6 +59,7 @@ export class ApiClientError extends Error {
     this.status = input.status;
     this.details = input.details;
     this.transportErrorKind = input.transportErrorKind;
+    this.correlationId = input.correlationId;
     this.cause = input.cause;
   }
 }

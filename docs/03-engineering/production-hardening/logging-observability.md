@@ -61,10 +61,28 @@ MVP:
 - request correlation IDs end-to-end
 - baseline realtime lifecycle diagnostics
 - central exception capture
+- request lifecycle logs (start/end, status, duration)
+- production-safe request tracing for API and realtime links
 
 Deferred:
 - full tracing stack and advanced dashboards
 - alert intelligence and ownership automation
+
+## Implemented Foundation (Phase 3)
+- API logger now emits structured JSON with stable fields:
+  - `timestamp`, `level`, `service`, `env`, `message`, `context`
+- logger supports level filtering and context redaction for sensitive keys:
+  - `token`, `secret`, `password`, `authorization`, `cookie`, `session`, `jwt`, `api_key`
+- request correlation middleware:
+  - accepts safe inbound `x-request-id` or generates `req_<uuid>`
+  - propagates `x-request-id` in API response headers
+- request lifecycle middleware:
+  - logs request start and completion
+  - records HTTP status and elapsed duration
+  - emits normalized severity (`warn` for 4xx, `error` for 5xx)
+- API error envelopes now include `meta.requestId` and `meta.timestamp` when available.
+- realtime diagnostics snapshots now include non-sensitive connection samples and reconnect counters.
+- web HTTP client sends correlation IDs via `x-request-id` and captures API correlation IDs for client error references.
 
 ## OPEN_DECISION
 - Primary observability backend and retention policy by environment.

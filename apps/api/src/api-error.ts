@@ -14,11 +14,20 @@ export const sendApiError = (
   message: string,
   details?: Record<string, string | number | boolean>
 ): void => {
+  const requestId = response.req?.correlationId;
   response.status(status).json({
     error: {
       code,
       message,
       ...(details ? { details } : {})
-    }
+    },
+    ...(requestId
+      ? {
+          meta: {
+            requestId,
+            timestamp: new Date().toISOString()
+          }
+        }
+      : {})
   });
 };

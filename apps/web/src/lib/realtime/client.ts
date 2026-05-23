@@ -49,6 +49,7 @@ const createEnvelope = <TPayload>(
 type RealtimeClientOptions = {
   realtimeUrl: string;
   getAccessToken: () => string | undefined;
+  getCorrelationId?: () => string | undefined;
   onStateChange?: (state: RealtimeConnectionState) => void;
   onError?: (message: string) => void;
   onEvent?: (event: RealtimeEventEnvelope<unknown>) => void;
@@ -92,6 +93,10 @@ export const createRealtimeClient = (options: RealtimeClientOptions): RealtimeCl
     }
     if (reconnectToken) {
       url.searchParams.set("reconnectToken", reconnectToken);
+    }
+    const correlationId = options.getCorrelationId?.();
+    if (correlationId) {
+      url.searchParams.set("cid", correlationId);
     }
     return url.toString();
   };

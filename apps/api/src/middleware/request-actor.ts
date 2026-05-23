@@ -121,6 +121,7 @@ export const createRequestActorMiddleware = (sessionResolver: SessionResolver) =
       next();
     } catch (error) {
       log("error", "Request actor resolution failed. Falling back to anonymous actor.", {
+        correlationId: request.correlationId,
         error: error instanceof Error ? error.message : "unknown"
       });
       request.actor = {

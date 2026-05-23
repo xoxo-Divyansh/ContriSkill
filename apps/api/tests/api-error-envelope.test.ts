@@ -18,4 +18,18 @@ describe("API error envelope", () => {
       }
     });
   });
+
+  it("attaches correlation metadata when request id is available", () => {
+    const json = vi.fn();
+    const status = vi.fn(() => ({ json }));
+    const response = {
+      status,
+      req: { correlationId: "req_123" }
+    } as unknown as Parameters<typeof sendApiError>[0];
+
+    sendApiError(response, 403, "FORBIDDEN", "Forbidden");
+
+    const payload = json.mock.calls[0]?.[0] as { meta?: { requestId: string } };
+    expect(payload.meta?.requestId).toBe("req_123");
+  });
 });
