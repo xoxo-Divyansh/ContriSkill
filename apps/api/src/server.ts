@@ -7,6 +7,8 @@ import helmet from "helmet";
 import type { ApiEnv } from "./config/env";
 import { createPostgresClient } from "./db/postgres";
 import { createRequestActorMiddleware } from "./middleware/request-actor";
+import { createRequestCorrelationMiddleware } from "./middleware/request-correlation";
+import { createRequestLoggingMiddleware } from "./middleware/request-logging";
 import { createAuthRouter } from "./modules/auth/routes";
 import { createAuthSessionRuntime } from "./modules/auth/session";
 import type { AuthSessionRuntime } from "./modules/auth/session";
@@ -14,7 +16,7 @@ import { createContributionRouter } from "./modules/contribution/routes";
 import { createDraftSyncRouter } from "./modules/draft/routes";
 import { createMutationRouter } from "./modules/mutation/routes";
 import { createProjectionSyncRouter } from "./modules/projection/routes";
-import { log } from "./observability/logger";
+import { configureLogger, log } from "./observability/logger";
 import { setRealtimeBroadcaster } from "./realtime/broadcaster";
 import { createRealtimeRuntime } from "./realtime/runtime";
 import { createWsTransport } from "./realtime/ws-transport";
@@ -61,6 +63,11 @@ export const createServerRuntime = (
   stopRealtime: () => void;
 } => {
   const app = express();
+  configureLogger({
+    serviceName: "api",
+    environment: env.nodeEnv,
+    minimumLevel: env.logLevel
+  });
   const corsAllowedOrigins = getCorsAllowedOrigins(env.wsCorsOrigin);
   const databaseClient = dependencies.databaseClientOverride ?? createPostgresClient(env);
   const authSessionRuntime = createAuthSessionRuntime(
@@ -86,6 +93,8 @@ export const createServerRuntime = (
     })
   );
   app.use(express.json());
+  app.use(createRequestCorrelationMiddleware());
+  app.use(createRequestLoggingMiddleware(env.nodeEnv));
   app.use(createRequestActorMiddleware(authSessionRuntime.sessionResolver));
   app.use("/api/v1", healthRouter);
   app.use(

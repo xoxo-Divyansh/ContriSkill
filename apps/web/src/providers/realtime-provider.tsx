@@ -12,6 +12,7 @@ import React, {
 } from "react";
 
 import { getWebEnv } from "../config/env";
+import { logClientDiagnostic } from "../lib/observability/client-diagnostics";
 import { createRealtimeClient, type RealtimeClient } from "../lib/realtime/client";
 
 import { useSession } from "./session-provider";
@@ -40,13 +41,21 @@ export const RealtimeProvider = ({ children }: { children: ReactNode }) => {
   const clientRef = useRef<RealtimeClient | undefined>(undefined);
   const subscriptionRef = useRef<RealtimeSubscription[]>([]);
   const listenersRef = useRef<Set<(event: RealtimeUiEvent) => void>>(new Set());
+  const correlationRef = useRef<string>(`rt_${Math.random().toString(16).slice(2)}`);
 
   useEffect(() => {
     const env = getWebEnv();
     clientRef.current = createRealtimeClient({
       realtimeUrl: env.realtimeUrl,
       getAccessToken: () => session.accessToken,
+      getCorrelationId: () => correlationRef.current,
       onStateChange: (nextState) => setState(nextState),
+      onError: (message) => {
+        logClientDiagnostic("warn", "Realtime client warning.", {
+          message,
+          correlationId: correlationRef.current
+        });
+      },
       onEvent: (event) => {
         let topicHint: string | undefined;
         if (event.scope.type === "contribution") {

@@ -45,7 +45,8 @@ describe("http client", () => {
         {
           status: 403,
           headers: {
-            "content-type": "application/json"
+            "content-type": "application/json",
+            "x-request-id": "api_req_123"
           }
         }
       );
@@ -59,7 +60,8 @@ describe("http client", () => {
     await expect(client.get("/api/v1/users/me/reputation")).rejects.toMatchObject({
       kind: "api",
       code: "FORBIDDEN",
-      status: 403
+      status: 403,
+      correlationId: "api_req_123"
     });
   });
 
@@ -107,5 +109,25 @@ describe("http client", () => {
       code: "TRANSPORT_ERROR",
       transportErrorKind: "network"
     });
+  });
+
+  it("attaches request correlation id header", async () => {
+    const fetcher = vi.fn(async () => {
+      return new Response(JSON.stringify({ data: { ok: true } }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json"
+        }
+      });
+    });
+
+    const client = createHttpClient({
+      baseUrl: "http://localhost:4000",
+      fetcher
+    });
+
+    await client.get<{ ok: boolean }>("/api/v1/health");
+    const headers = fetcher.mock.calls[0]?.[1]?.headers as Headers;
+    expect(headers.get("x-request-id")).toBeTypeOf("string");
   });
 });

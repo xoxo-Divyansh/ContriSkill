@@ -58,6 +58,8 @@ MVP production readiness does not mean:
 
 - `environment-management.md`
 - `logging-observability.md`
+- `observability-runbook.md`
+- `correlation-id-guide.md`
 - `error-handling.md`
 - `persistence-hardening.md`
 - `deployment-architecture.md`

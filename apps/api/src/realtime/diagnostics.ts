@@ -1,4 +1,8 @@
 export type RealtimeDiagnosticsCounters = {
+  connectionAttempts: number;
+  connectionAccepted: number;
+  unauthenticatedRejects: number;
+  reconnectTokenMisses: number;
   rejectedEvents: number;
   staleEvents: number;
   duplicateEvents: number;
@@ -20,11 +24,22 @@ export type RealtimeDiagnosticsSnapshot = {
   counters: RealtimeDiagnosticsCounters;
   activeConnections: number;
   reconnectSnapshotCount: number;
+  activeConnectionSamples: {
+    connectionId: string;
+    actorType: string;
+    role: string;
+    connectedAt: string;
+    correlationId?: string;
+  }[];
   generatedAt: string;
 };
 
 export class RealtimeDiagnostics {
   private counters: RealtimeDiagnosticsCounters = {
+    connectionAttempts: 0,
+    connectionAccepted: 0,
+    unauthenticatedRejects: 0,
+    reconnectTokenMisses: 0,
     rejectedEvents: 0,
     staleEvents: 0,
     duplicateEvents: 0,
@@ -49,11 +64,13 @@ export class RealtimeDiagnostics {
   snapshot(params: {
     activeConnections: number;
     reconnectSnapshotCount: number;
+    activeConnectionSamples: RealtimeDiagnosticsSnapshot["activeConnectionSamples"];
   }): RealtimeDiagnosticsSnapshot {
     return {
       counters: { ...this.counters },
       activeConnections: params.activeConnections,
       reconnectSnapshotCount: params.reconnectSnapshotCount,
+      activeConnectionSamples: [...params.activeConnectionSamples],
       generatedAt: new Date().toISOString()
     };
   }

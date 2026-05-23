@@ -10,6 +10,7 @@ import type { RequestActor } from "../modules/auth/types";
 export type RealtimeConnectionContext = {
   connectionId: string;
   reconnectToken: string;
+  correlationId?: string;
   connectedAt: string;
   actor: RequestActor;
   state: RealtimeConnectionState;
