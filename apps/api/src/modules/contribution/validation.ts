@@ -24,6 +24,14 @@ type ValidationFailure = {
 
 type ValidationResult<T> = ValidationSuccess<T> | ValidationFailure;
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+};
+
+const hasOnlyAllowedKeys = (value: Record<string, unknown>, allowed: readonly string[]): boolean => {
+  return Object.keys(value).every((key) => allowed.includes(key));
+};
+
 const isNonEmptyString = (value: unknown): value is string => {
   return typeof value === "string" && value.trim().length > 0;
 };
@@ -39,8 +47,11 @@ const isNumber = (value: unknown): value is number => {
 export const validateCreateContributionBody = (
   body: unknown
 ): ValidationResult<CreateContributionRequestBody> => {
-  if (!body || typeof body !== "object") {
+  if (!isPlainObject(body)) {
     return { ok: false, message: "request body is required." };
+  }
+  if (!hasOnlyAllowedKeys(body, ["type", "title", "description", "difficulty", "creditOffer"])) {
+    return { ok: false, message: "request body contains unsupported fields." };
   }
 
   const candidate = body as Partial<CreateContributionRequestBody>;
@@ -75,8 +86,11 @@ export const validateCreateContributionBody = (
 export const validateUpdateContributionBody = (
   body: unknown
 ): ValidationResult<UpdateContributionRequestBody> => {
-  if (!body || typeof body !== "object") {
+  if (!isPlainObject(body)) {
     return { ok: false, message: "request body is required." };
+  }
+  if (!hasOnlyAllowedKeys(body, ["title", "description", "difficulty", "creditOffer"])) {
+    return { ok: false, message: "request body contains unsupported fields." };
   }
 
   const candidate = body as UpdateContributionRequestBody;
@@ -126,8 +140,11 @@ export const validateCancelContributionBody = (
     return { ok: true, value: {} };
   }
 
-  if (typeof body !== "object") {
+  if (!isPlainObject(body)) {
     return { ok: false, message: "request body must be an object." };
+  }
+  if (!hasOnlyAllowedKeys(body, ["reason"])) {
+    return { ok: false, message: "request body contains unsupported fields." };
   }
 
   const candidate = body as CancelContributionRequestBody;
@@ -146,8 +163,11 @@ export const validateCancelContributionBody = (
 export const validateTransitionContributionBody = (
   body: unknown
 ): ValidationResult<TransitionContributionRequestBody> => {
-  if (!body || typeof body !== "object") {
+  if (!isPlainObject(body)) {
     return { ok: false, message: "request body is required." };
+  }
+  if (!hasOnlyAllowedKeys(body, ["nextState", "reason"])) {
+    return { ok: false, message: "request body contains unsupported fields." };
   }
 
   const candidate = body as Partial<TransitionContributionRequestBody>;
@@ -170,8 +190,11 @@ export const validateTransitionContributionBody = (
 export const validateSubmitApplicationBody = (
   body: unknown
 ): ValidationResult<SubmitApplicationRequestBody> => {
-  if (!body || typeof body !== "object") {
+  if (!isPlainObject(body)) {
     return { ok: false, message: "request body is required." };
+  }
+  if (!hasOnlyAllowedKeys(body, ["message"])) {
+    return { ok: false, message: "request body contains unsupported fields." };
   }
 
   const candidate = body as Partial<SubmitApplicationRequestBody>;

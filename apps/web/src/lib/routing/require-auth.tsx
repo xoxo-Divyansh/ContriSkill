@@ -19,6 +19,10 @@ export const shouldAllowAuthenticatedRoute = (session: SessionSnapshot): boolean
 
 export const RequireAuth = ({ children, fallback }: RequireAuthProps) => {
   const { session, isReady } = useSession();
+  const redirectTarget =
+    session.sessionState === "expired"
+      ? `${routePaths.signIn}?reason=session_expired`
+      : `${routePaths.signIn}?reason=unauthorized`;
 
   useEffect(() => {
     if (!isReady) {
@@ -27,13 +31,13 @@ export const RequireAuth = ({ children, fallback }: RequireAuthProps) => {
 
     if (!shouldAllowAuthenticatedRoute(session)) {
       if (typeof window !== "undefined") {
-        window.location.replace(routePaths.signIn);
+        window.location.replace(redirectTarget);
       }
     }
-  }, [isReady, session]);
+  }, [isReady, session, redirectTarget]);
 
   if (!isReady) {
-    return <div data-route-intent={`redirect:${routePaths.signIn}`}>ROUTE_GUARD_REQUIRE_AUTH</div>;
+    return <div data-route-intent={`redirect:${redirectTarget}`}>SESSION_CHECK_IN_PROGRESS</div>;
   }
 
   if (shouldAllowAuthenticatedRoute(session)) {
@@ -43,7 +47,9 @@ export const RequireAuth = ({ children, fallback }: RequireAuthProps) => {
   return (
     <>
       {fallback ?? (
-        <div data-route-intent={`redirect:${routePaths.signIn}`}>ROUTE_GUARD_REQUIRE_AUTH</div>
+        <div data-route-intent={`redirect:${redirectTarget}`}>
+          ACCESS_REQUIRED_OR_SESSION_EXPIRED
+        </div>
       )}
     </>
   );

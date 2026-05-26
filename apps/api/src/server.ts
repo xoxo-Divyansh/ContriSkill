@@ -6,7 +6,9 @@ import helmet from "helmet";
 
 import type { ApiEnv } from "./config/env";
 import { createPostgresClient } from "./db/postgres";
+import { rateLimitMiddleware } from "./middleware/rate-limit";
 import { createRequestActorMiddleware } from "./middleware/request-actor";
+import { malformedPayloadMiddleware } from "./middleware/security-response";
 import { createAuthRouter } from "./modules/auth/routes";
 import { createAuthSessionRuntime } from "./modules/auth/session";
 import type { AuthSessionRuntime } from "./modules/auth/session";
@@ -82,6 +84,7 @@ export const createServerRuntime = (
     })
   );
   app.use(express.json());
+  app.use(rateLimitMiddleware);
   app.use(createRequestActorMiddleware(authSessionRuntime.sessionResolver));
   app.use("/api/v1", healthRouter);
   app.use(
@@ -99,6 +102,8 @@ export const createServerRuntime = (
       ...(databaseClient ? { databaseClient } : {})
     })
   );
+
+  app.use(malformedPayloadMiddleware);
 
   const realtimeRuntime =
     dependencies.httpServer &&

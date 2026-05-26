@@ -47,8 +47,8 @@ describe("routing wrappers", () => {
       createElement(RequireAuth, null, createElement("p", null, "allowed"))
     );
 
-    expect(html).toContain("ROUTE_GUARD_REQUIRE_AUTH");
-    expect(html).toContain("redirect:/sign-in");
+    expect(html).toContain("ACCESS_REQUIRED_OR_SESSION_EXPIRED");
+    expect(html).toContain("redirect:/sign-in?reason=unauthorized");
   });
 
   it("allows RequireAuth for authenticated sessions", () => {
@@ -80,7 +80,7 @@ describe("routing wrappers", () => {
       )
     );
 
-    expect(html).toContain("ROUTE_GUARD_REQUIRE_ROLE:moderator");
+    expect(html).toContain("PERMISSION_DENIED:moderator");
   });
 
   it("resolves root target path by session auth state", () => {

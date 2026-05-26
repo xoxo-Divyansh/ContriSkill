@@ -382,8 +382,13 @@ class DefaultSessionResolver implements SessionResolver {
     if (!session) {
       return undefined;
     }
+    const actor = toActor(session);
+    if (actor.actorType !== "authenticated" || actor.sessionState !== "authenticated") {
+      await this.sessionStore.revokeBySessionId(session.id);
+      return undefined;
+    }
     await this.sessionStore.touch(session.id);
-    return toActor(session);
+    return actor;
   }
 }
 

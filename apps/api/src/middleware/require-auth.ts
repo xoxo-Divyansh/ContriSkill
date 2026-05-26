@@ -3,6 +3,8 @@ import type { NextFunction, Request, Response } from "express";
 import { assertAuthenticatedActor } from "../modules/auth/authorization";
 import { AuthorizationError } from "../modules/auth/capabilities";
 
+import { handleAuthorizationFailure } from "./security-response";
+
 export const requireAuthMiddleware = (
   request: Request,
   response: Response,
@@ -14,12 +16,7 @@ export const requireAuthMiddleware = (
     return;
   } catch (error) {
     if (error instanceof AuthorizationError) {
-      response.status(401).json({
-        error: {
-          code: "UNAUTHENTICATED",
-          message: error.message
-        }
-      });
+      handleAuthorizationFailure(request, response, error);
       return;
     }
 

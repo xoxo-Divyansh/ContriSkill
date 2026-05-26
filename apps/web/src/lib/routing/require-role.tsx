@@ -24,13 +24,17 @@ export const canAccessRoleGuard = (session: SessionSnapshot, minimumRole: Role):
 
 export const RequireRole = ({ children, minimumRole, fallback }: RequireRoleProps) => {
   const { session, isReady } = useSession();
+  const deniedTarget =
+    session.actorType === "authenticated"
+      ? `${routePaths.appHome}?reason=forbidden`
+      : `${routePaths.signIn}?reason=unauthorized`;
 
   if (!isReady) {
     return (
       <>
         {fallback ?? (
-          <div data-route-intent={`redirect:${routePaths.signIn}`}>
-            ROUTE_GUARD_REQUIRE_ROLE:{minimumRole}
+          <div data-route-intent={`redirect:${deniedTarget}`}>
+            PERMISSION_CHECK_IN_PROGRESS:{minimumRole}
           </div>
         )}
       </>
@@ -44,8 +48,8 @@ export const RequireRole = ({ children, minimumRole, fallback }: RequireRoleProp
   return (
     <>
       {fallback ?? (
-        <div data-route-intent={`redirect:${routePaths.signIn}`}>
-          ROUTE_GUARD_REQUIRE_ROLE:{minimumRole}
+        <div data-route-intent={`redirect:${deniedTarget}`}>
+          PERMISSION_DENIED:{minimumRole}
         </div>
       )}
     </>

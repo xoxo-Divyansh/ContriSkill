@@ -31,10 +31,31 @@ const sendError = (
   });
 };
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+};
+
+const hasOnlyAllowedKeys = (value: Record<string, unknown>, allowed: readonly string[]): boolean => {
+  return Object.keys(value).every((key) => allowed.includes(key));
+};
+
 export class AuthController {
   constructor(private readonly service: AuthService) {}
 
   register = async (request: Request, response: Response): Promise<void> => {
+    if (!isPlainObject(request.body)) {
+      sendError(response, httpStatus.badRequest, "VALIDATION_ERROR", "request body is required.");
+      return;
+    }
+    if (!hasOnlyAllowedKeys(request.body, ["email", "password", "username"])) {
+      sendError(
+        response,
+        httpStatus.badRequest,
+        "VALIDATION_ERROR",
+        "request body contains unsupported fields."
+      );
+      return;
+    }
     const { email, password, username } = request.body as Partial<{
       email: string;
       password: string;
@@ -64,6 +85,19 @@ export class AuthController {
   };
 
   login = async (request: Request, response: Response): Promise<void> => {
+    if (!isPlainObject(request.body)) {
+      sendError(response, httpStatus.badRequest, "VALIDATION_ERROR", "request body is required.");
+      return;
+    }
+    if (!hasOnlyAllowedKeys(request.body, ["identifier", "password"])) {
+      sendError(
+        response,
+        httpStatus.badRequest,
+        "VALIDATION_ERROR",
+        "request body contains unsupported fields."
+      );
+      return;
+    }
     const { identifier, password } = request.body as Partial<{
       identifier: string;
       password: string;
@@ -101,10 +135,22 @@ export class AuthController {
       );
       return;
     }
+    if (!isPlainObject(request.body) || !hasOnlyAllowedKeys(request.body, ["refreshToken"])) {
+      sendError(
+        response,
+        httpStatus.badRequest,
+        "VALIDATION_ERROR",
+        "request body must contain only refreshToken."
+      );
+      return;
+    }
 
     const refreshToken =
-      typeof request.body?.refreshToken === "string" ? request.body.refreshToken : undefined;
-    const payload = await this.service.refresh({ refreshToken }, request.actor);
+      typeof request.body.refreshToken === "string" ? request.body.refreshToken : undefined;
+    const payload = await this.service.refresh(
+      refreshToken ? { refreshToken } : {},
+      request.actor
+    );
     response.status(httpStatus.accepted).json(payload);
   };
 

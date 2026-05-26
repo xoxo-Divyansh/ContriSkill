@@ -12,6 +12,7 @@ import {
   type RequestActor
 } from "../modules/auth/types";
 import { log } from "../observability/logger";
+import { emitSecurityEvent } from "../observability/security-events";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -67,21 +68,25 @@ const parseCookies = (value: string | undefined): Record<string, string> => {
       }
       const key = cookie.slice(0, separatorIndex).trim();
       const rawCookieValue = cookie.slice(separatorIndex + 1).trim();
-      accumulator[key] = decodeURIComponent(rawCookieValue);
+      try {
+        accumulator[key] = decodeURIComponent(rawCookieValue);
+      } catch {
+        log("warn", "Malformed cookie encoding detected.", { key });
+      }
       return accumulator;
     }, {});
 };
 
 export const resolveAccessTokenFromRequest = (request: Request): string | undefined => {
   const headerToken = parseHeaderValue(request.headers[sessionTokenHeaderKey]);
-  if (headerToken && headerToken.trim().length > 0) {
+  if (headerToken && headerToken.trim().length > 0 && headerToken.length <= 256) {
     return headerToken.trim();
   }
 
   const cookieHeader = parseHeaderValue(request.headers.cookie);
   const cookies = parseCookies(cookieHeader);
   const cookieToken = cookies[sessionCookieKey];
-  return cookieToken?.trim().length ? cookieToken.trim() : undefined;
+  return cookieToken?.trim().length && cookieToken.length <= 256 ? cookieToken.trim() : undefined;
 };
 
 const buildFallbackActorFromHeaders = (request: Request): RequestActor => {
@@ -118,6 +123,11 @@ export const createRequestActorMiddleware = (sessionResolver: SessionResolver) =
       const resolvedActor = await sessionResolver.resolveActorByAccessToken(accessToken);
 
       request.actor = resolvedActor ?? buildFallbackActorFromHeaders(request);
+      if (!accessToken && request.actor.actorType === "authenticated") {
+        emitSecurityEvent("suspicious_request", request, {
+          reason: "authenticated_headers_without_session_token"
+        });
+      }
       next();
     } catch (error) {
       log("error", "Request actor resolution failed. Falling back to anonymous actor.", {
