@@ -1,19 +1,19 @@
 import {
-  realtimeEventNames,
-  realtimeEventVersion,
-  type RealtimeScope
+    realtimeEventNames,
+    realtimeEventVersion,
+    type RealtimeScope
 } from "@contriskill/contracts";
 import { describe, expect, it, vi } from "vitest";
 
 import { createRealtimeRuntime } from "../src/realtime/runtime";
 import type {
-  RealtimeClientHandle,
-  RealtimeTransportLifecycle,
-  RealtimeUpgradeRequest
+    RealtimeClientHandle,
+    RealtimeTransportLifecycle,
+    RealtimeUpgradeRequest
 } from "../src/realtime/transport";
 import type {
-  RealtimeTransportIncomingEnvelope,
-  RealtimeTransportSendEnvelope
+    RealtimeTransportIncomingEnvelope,
+    RealtimeTransportSendEnvelope
 } from "../src/realtime/types";
 
 class FakeClient implements RealtimeClientHandle {
@@ -129,10 +129,15 @@ describe("realtime runtime foundation", () => {
             return undefined;
           }
           return {
-            actorType: "authenticated",
+            id: "ses_42",
+            userId: "usr_42",
             role: "user",
-            sessionState: "authenticated",
-            userId: "usr_42"
+            state: "authenticated",
+            accessToken: token,
+            refreshToken: "rtk_42",
+            issuedAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            lastSeenAt: new Date().toISOString()
           };
         }
       }
@@ -211,10 +216,15 @@ describe("realtime runtime foundation", () => {
       sessionResolver: {
         resolveActorByAccessToken: async () => {
           return {
-            actorType: "authenticated",
+            id: "ses_100",
+            userId: "usr_100",
             role: "user",
-            sessionState: "authenticated",
-            userId: "usr_42"
+            state: "authenticated",
+            accessToken: "atk_100",
+            refreshToken: "rtk_100",
+            issuedAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            lastSeenAt: new Date().toISOString()
           };
         }
       }

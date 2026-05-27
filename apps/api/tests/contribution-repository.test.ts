@@ -22,7 +22,11 @@ class FakeContributionDatabaseClient implements DatabaseClient {
     text: string,
     values?: readonly unknown[]
   ): Promise<{ rows: T[] }> {
-    this.calls.push({ text, values });
+    if (values !== undefined) {
+      this.calls.push({ text, values });
+    } else {
+      this.calls.push({ text });
+    }
 
     if (text.includes("insert into contribution_posts")) {
       const [id, creatorUserId, postType, title, description, difficulty, creditOffer] =

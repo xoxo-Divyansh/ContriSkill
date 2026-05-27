@@ -1,21 +1,28 @@
 import { describe, expect, it } from "vitest";
 
 import type {
-  ContributionApplication,
-  ContributionCollaboration,
-  ContributionDomainEvent,
-  ContributionEventRepository,
-  ContributionPost,
-  ContributionRepository,
-  CreateContributionPostInput
+    ContributionApplication,
+    ContributionCollaboration,
+    ContributionDomainEvent,
+    ContributionEventRepository,
+    ContributionPost,
+    ContributionRepository,
+    CreateContributionPostInput
 } from "../../../packages/domain/src/contribution/index.js";
 import type { RequestActor } from "../src/modules/auth/types";
-import { createContributionService, ContributionServiceError } from "../src/modules/contribution";
+import { ContributionServiceError, createContributionService } from "../src/modules/contribution";
 
 class InMemoryContributionRepository implements ContributionRepository {
   private readonly posts = new Map<string, ContributionPost>();
   private readonly applications = new Map<string, ContributionApplication>();
   private readonly collaborations = new Map<string, ContributionCollaboration>();
+
+  async listPosts(input: any): Promise<{ items: ContributionPost[] }> {
+    // Minimal implementation for test compatibility
+    return {
+      items: Array.from(this.posts.values())
+    };
+  }
 
   async createPost(input: CreateContributionPostInput): Promise<ContributionPost> {
     const id = `post_${this.posts.size + 1}`;
