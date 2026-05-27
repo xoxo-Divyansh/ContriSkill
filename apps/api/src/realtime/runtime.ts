@@ -1,27 +1,28 @@
 import { randomUUID } from "node:crypto";
 
 import {
-  type ContributionPresenceDeltaPayload,
-  type ContributionPresenceSnapshotPayload,
-  type WorkspaceSessionLeftPayload,
-  type WorkspaceSessionLifecyclePayload,
-  type WorkspaceSessionSnapshotPayload,
-  type WorkspaceSessionCapability,
-  realtimeClientEventNames,
-  realtimeEventNames,
-  realtimeEventVersion,
-  type ClientHeartbeatAckPayload,
-  type ClientSubscribePayload,
-  type ClientUnsubscribePayload,
-  type RealtimeEventEnvelope,
-  type RealtimeScope,
-  type RealtimeSubscription,
-  type RealtimeSubscriptionTopic
+    realtimeClientEventNames,
+    realtimeEventNames,
+    realtimeEventVersion,
+    type ClientHeartbeatAckPayload,
+    type ClientSubscribePayload,
+    type ClientUnsubscribePayload,
+    type ContributionPresenceDeltaPayload,
+    type ContributionPresenceSnapshotPayload,
+    type RealtimeEventEnvelope,
+    type RealtimeScope,
+    type RealtimeSubscription,
+    type RealtimeSubscriptionTopic,
+    type WorkspaceSessionCapability,
+    type WorkspaceSessionLeftPayload,
+    type WorkspaceSessionLifecyclePayload,
+    type WorkspaceSessionSnapshotPayload
 } from "@contriskill/contracts";
 
 import { canActor } from "../modules/auth/authorization";
 import type { SessionResolver } from "../modules/auth/session";
 import { log } from "../observability/logger";
+import { validateSessionRecord } from "../security/session-validation";
 
 import type { RealtimeBroadcaster } from "./broadcaster";
 import { RealtimeConnectionRegistry } from "./connection-registry";
@@ -711,7 +712,11 @@ export const createRealtimeRuntime = ({
     const correlationId = getCorrelationId(requestUrl);
     const token = getSessionToken(requestUrl);
     const reconnectToken = getReconnectToken(requestUrl);
-    const actor = await sessionResolver.resolveActorByAccessToken(token);
+
+    // Resolve session and convert to RequestActor
+    const session = await sessionResolver.resolveActorByAccessToken(token);
+    const validationResult = validateSessionRecord(session);
+    const actor = validationResult.actor;
 
     diagnostics.increment("connectionAttempts");
     diagnostics.increment("reconnectAttempts");
@@ -887,15 +892,18 @@ export const createRealtimeRuntime = ({
   };
 
   const getDiagnostics = (): RealtimeDiagnosticsSnapshot => {
-    const activeConnectionSamples = registry.getAllConnections().slice(0, 50).map((connection) => {
-      return {
-        connectionId: connection.connectionId,
-        actorType: connection.actor.actorType,
-        role: connection.actor.role,
-        connectedAt: connection.connectedAt,
-        ...(connection.correlationId ? { correlationId: connection.correlationId } : {})
-      };
-    });
+    const activeConnectionSamples = registry
+      .getAllConnections()
+      .slice(0, 50)
+      .map((connection) => {
+        return {
+          connectionId: connection.connectionId,
+          actorType: connection.actor.actorType,
+          role: connection.actor.role,
+          connectedAt: connection.connectedAt,
+          ...(connection.correlationId ? { correlationId: connection.correlationId } : {})
+        };
+      });
 
     return diagnostics.snapshot({
       activeConnections: registry.getAllConnections().length,

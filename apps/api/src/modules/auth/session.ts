@@ -10,7 +10,7 @@ import {
   hashSessionToken,
   nowIsoTimestamp
 } from "./token";
-import type { AuthSessionRecord, RequestActor, SessionRole } from "./types";
+import type { AuthSessionRecord, SessionRole } from "./types";
 
 type SessionRow = {
   id: string;
@@ -71,23 +71,6 @@ const toSessionRecord = (
   }
 
   return baseRecord;
-};
-
-const toActor = (session: AuthSessionRecord): RequestActor => {
-  if (session.revokedAt || isExpired(session) || session.state !== "authenticated") {
-    return {
-      actorType: "anonymous",
-      role: "public",
-      sessionState: "expired"
-    };
-  }
-
-  return {
-    actorType: "authenticated",
-    role: session.role,
-    sessionState: "authenticated",
-    userId: session.userId
-  };
 };
 
 class InMemorySessionStore implements SessionStore {
@@ -366,7 +349,9 @@ class PostgresSessionStore implements SessionStore {
 }
 
 export type SessionResolver = {
-  resolveActorByAccessToken(accessToken: string | undefined): Promise<RequestActor | undefined>;
+  resolveActorByAccessToken(
+    accessToken: string | undefined
+  ): Promise<AuthSessionRecord | undefined>;
 };
 
 class DefaultSessionResolver implements SessionResolver {
@@ -374,7 +359,7 @@ class DefaultSessionResolver implements SessionResolver {
 
   async resolveActorByAccessToken(
     accessToken: string | undefined
-  ): Promise<RequestActor | undefined> {
+  ): Promise<AuthSessionRecord | undefined> {
     if (!accessToken) {
       return undefined;
     }
@@ -383,7 +368,7 @@ class DefaultSessionResolver implements SessionResolver {
       return undefined;
     }
     await this.sessionStore.touch(session.id);
-    return toActor(session);
+    return session;
   }
 }
 

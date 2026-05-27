@@ -22,7 +22,7 @@ describe("RealtimeConnectionRegistry", () => {
     const subscription = registry.subscribe(
       "conn_1",
       { type: "contribution", id: "post_1" },
-      "contribution.lifecycle"
+      "contribution:post_1"
     );
 
     expect(subscription.connectionId).toBe("conn_1");
@@ -31,11 +31,7 @@ describe("RealtimeConnectionRegistry", () => {
     ).toBe("conn_1");
 
     expect(
-      registry.unsubscribe(
-        "conn_1",
-        { type: "contribution", id: "post_1" },
-        "contribution.lifecycle"
-      )
+      registry.unsubscribe("conn_1", { type: "contribution", id: "post_1" }, "contribution:post_1")
     ).toBe(true);
     expect(registry.getTargetsByScope({ type: "contribution", id: "post_1" })).toHaveLength(0);
   });
